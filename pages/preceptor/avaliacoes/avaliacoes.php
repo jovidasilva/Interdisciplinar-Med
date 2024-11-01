@@ -38,8 +38,10 @@ if (empty($_SESSION["login"])) {
                         case 'consultar-avaliacao':
                             include('consultar-avaliacao.php');
                             break;
+                        case 'processar-avaliacao':
+                            include('processar-avaliacao.php');
                         default:
-                            include('listar-aluno.php');
+                            include('avaliacoes-lista.php');
                             break;
                     }
                     ?>

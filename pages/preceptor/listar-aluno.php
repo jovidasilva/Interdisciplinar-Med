@@ -38,11 +38,10 @@ include('../../cfg/config.php');
                         </thead>
                         <tbody>
                             <?php
-                            // Subconsulta para buscar a nota mais recente de cada aluno
                             $sql = "SELECT u.nome, 
                                            COALESCE((SELECT a.nota 
                                                      FROM avaliacoes a 
-                                                     WHERE a.idusuario = u.idusuario 
+                                                     WHERE a.idaluno = u.idusuario 
                                                      ORDER BY a.data_avaliacao DESC 
                                                      LIMIT 1), 'Sem nota') AS nota
                                     FROM usuarios u

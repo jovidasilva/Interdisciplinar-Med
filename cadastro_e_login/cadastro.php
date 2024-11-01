@@ -10,7 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $login = $_POST['login'];
     $senha = password_hash($_POST['senha'], PASSWORD_DEFAULT);
 
-    $stmt = $conn->prepare("INSERT INTO usuarios (nome, email, telefone, registro, login, senha, tipo) VALUES (?, ?, ?, ?, ?, ?, -1)");
+    $stmt = $conn->prepare("INSERT INTO usuarios (nome, email, telefone, registro, login, senha, tipo) VALUES (?, ?, ?, ?, ? , ?, -1)");
     $stmt->bind_param("ssssss", $nome, $email, $telefone, $registro, $login, $senha);
 
     if ($stmt->execute()) {
@@ -48,43 +48,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             left: 0;
             width: 65%;
             height: 100%;
-            background-color: #1d780b;
+            background-color: green;
             transform: skewX(-30deg);
             transform-origin: top left;
             z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 15px -10px 20px rgba(0, 0, 0, 0.5); /* Sombra para criar efeito de profundidade */
-        }
-
-        .logo-container {
-            transform: skewX(30deg);
-            display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
-            height: 100%;
-            padding-top: 100px;
-            padding-left: 20px;
-        }
-
-        .logo-container img {
-            width: 550px;
         }
 
         .card-login {
-    position: relative;
-    z-index: 2;
-    padding: 2rem;
-    width: 500px;
-    background-color: white;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    text-align: center;
-    margin-left: 1500px; /* Ajuste este valor para mover o container para a direita */
-}
-
-
+            position: relative;
+            z-index: 2;
+            padding: 2rem;
+            width: 500px;
+            background-color: white;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            text-align: center;
+        }
         .card-login form {
             text-align: left;
         }
@@ -100,51 +79,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 0.5rem;
             border-radius: 5px;
             border: 1px solid #ccc;
-            
         }
 
-        .card-login .btn-primary {
-            width: 48%;
+        .card-login button {
+            width: 20%;
             padding: 0.5rem;
-            background-color: #299E12;
+            background-color: green;
             color: white;
             border: none;
             border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
+            margin-bottom: 3px;
         }
 
-        .card-login .btn-primary:hover {
-            background-color: #217b10;
-        }
-
-        .card-login .btn-secondary {
-            width: 48%;
-            padding: 0.5rem;
-            color: #6c757d;
-            background-color: #e9ecef;
-            border: 1px solid #6c757d;
-            border-radius: 5px;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .card-login .btn-secondary:hover {
-            background-color: #d6d8db;
-            border-color: #5a6268;
+        .card-login button:hover {
+            background-color: darkgreen;
         }
     </style>
 </head>
 
 <body>
-    <div class="box-green">
-        <div class="logo-container">
-            <img src="../img/LogoCeuma.png" alt="Logo CEUMA">
-        </div>
-    </div>
+    <div class="box-green"></div>
     <div class="card-login">
         <h3 id="cadastro-title">Realize seu cadastro</h3>
         <form action="" method="POST">
@@ -172,11 +128,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <label for="senha">Senha</label>
                 <input type="password" name="senha" class="form-control" required>
             </div>
-            <div class="mb-3 d-flex justify-content-between">
-                <button type="submit" class="btn btn-primary">Cadastrar</button>
-                <a href="../index.php" class="btn btn-secondary">Voltar</a>
+            <div class="mb-3 d-flex justify-content-center gap-2">
+                <button type="submit">Cadastrar</button>
             </div>
         </form>
+        <a href="../index.php" class="btn btn-secondary">Voltar</a>
     </div>
 </body>
 

@@ -33,6 +33,9 @@ include('../../../cfg/config.php');
                         case 'gerar-rodizios':
                             include('gerar-rodizios.php');
                             break;
+                        case 'realizar-avaliacao':
+                            include('realizar-avaliacao.php');
+                            break;
                         default:
                             include('visualizar-rodizios.php');
                             break;

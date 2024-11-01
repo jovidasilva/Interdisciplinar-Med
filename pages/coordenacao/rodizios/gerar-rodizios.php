@@ -36,6 +36,10 @@
                     <input type="date" id="fim3" name="fim3">
                     <input type="hidden" id="modulo3" name="modulo3">
                 </div>
+                <div class="form mt-3">
+                    <input type="checkbox" name="shuffle" id="shuffle">
+                    <label for="shuffle">Não preencher grupos</label>
+                </div>
 
                 <button type="button" class="btn btn-secondary mt-3" onclick="gerarRodizios()">Gerar rodizio</button>
 
@@ -61,51 +65,52 @@
         } else {
             document.getElementById('modulosContainer').innerHTML = "<p>Selecione um período primeiro</p>";
         }
-    } 
-        function gerarRodizios() {
-            var inicio1 = document.getElementById('inicio1').value;
-            var fim1 = document.getElementById('fim1').value;
-            var inicio2 = document.getElementById('inicio2').value;
-            var fim2 = document.getElementById('fim2').value;
-            var inicio3 = document.getElementById('inicio3').value;
-            var fim3 = document.getElementById('fim3').value;
-            var periodo = document.getElementById('selectPeriodo').value;
-            document.getElementById('hiddenPeriodo').value = periodo;
+    }
 
-            if (new Date(fim1) <= new Date(inicio1)) {
-                alert("A data de término do Rodízio 1 deve ser após a data de início.");
-                return false;
-            }
-            if (new Date(inicio2) <= new Date(fim1) || new Date(fim2) <= new Date(inicio2)) {
-                alert("O Rodízio 2 deve começar após o término do Rodízio 1 e a data de término deve ser após a data de início.");
-                return false;
-            }
-            if (new Date(inicio3) <= new Date(fim2) || new Date(fim3) <= new Date(inicio3)) {
-                alert("O Rodízio 3 deve começar após o término do Rodízio 2 e a data de término deve ser após a data de início.");
-                return false;
-            }
+    function gerarRodizios() {
+        var inicio1 = document.getElementById('inicio1').value;
+        var fim1 = document.getElementById('fim1').value;
+        var inicio2 = document.getElementById('inicio2').value;
+        var fim2 = document.getElementById('fim2').value;
+        var inicio3 = document.getElementById('inicio3').value;
+        var fim3 = document.getElementById('fim3').value;
+        var periodo = document.getElementById('selectPeriodo').value;
+        document.getElementById('hiddenPeriodo').value = periodo;
 
-            var modulos = document.querySelectorAll('#modulosContainer li[data-idmodulo]');
-            if (modulos.length < 3) {
-                alert("É necessário ter ao menos 3 módulos disponíveis.");
-                return false;
-            }
-
-            var modulosArray = Array.from(modulos).map(modulo => modulo.dataset.idmodulo);
-
-
-            document.getElementById('modulo1').value = modulosArray[0];
-            document.getElementById('modulo2').value = modulosArray[1];
-            document.getElementById('modulo3').value = modulosArray[2];
-
-            document.getElementById('modulo1').value = modulosArray[1]; 
-            document.getElementById('modulo2').value = modulosArray[2];
-            document.getElementById('modulo3').value = modulosArray[0]; 
-
-            document.getElementById('modulo1').value = modulosArray[2]; 
-            document.getElementById('modulo2').value = modulosArray[0]; 
-            document.getElementById('modulo3').value = modulosArray[1]; 
-
-            document.getElementById('rodizioForm').submit();
+        if (new Date(fim1) <= new Date(inicio1)) {
+            alert("A data de término do Rodízio 1 deve ser após a data de início.");
+            return false;
         }
+        if (new Date(inicio2) <= new Date(fim1) || new Date(fim2) <= new Date(inicio2)) {
+            alert("O Rodízio 2 deve começar após o término do Rodízio 1 e a data de término deve ser após a data de início.");
+            return false;
+        }
+        if (new Date(inicio3) <= new Date(fim2) || new Date(fim3) <= new Date(inicio3)) {
+            alert("O Rodízio 3 deve começar após o término do Rodízio 2 e a data de término deve ser após a data de início.");
+            return false;
+        }
+
+        var modulos = document.querySelectorAll('#modulosContainer li[data-idmodulo]');
+        if (modulos.length < 3) {
+            alert("É necessário ter ao menos 3 módulos disponíveis.");
+            return false;
+        }
+
+        var modulosArray = Array.from(modulos).map(modulo => modulo.dataset.idmodulo);
+
+
+        document.getElementById('modulo1').value = modulosArray[0];
+        document.getElementById('modulo2').value = modulosArray[1];
+        document.getElementById('modulo3').value = modulosArray[2];
+
+        document.getElementById('modulo1').value = modulosArray[1];
+        document.getElementById('modulo2').value = modulosArray[2];
+        document.getElementById('modulo3').value = modulosArray[0];
+
+        document.getElementById('modulo1').value = modulosArray[2];
+        document.getElementById('modulo2').value = modulosArray[0];
+        document.getElementById('modulo3').value = modulosArray[1];
+
+        document.getElementById('rodizioForm').submit();
+    }
 </script>

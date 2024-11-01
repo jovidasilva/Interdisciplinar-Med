@@ -20,7 +20,7 @@
 
         if ($qtd > 0) {
             while ($row = $res->fetch_object()) {
-                $sql_avaliacao = "SELECT COUNT(*) AS total_avaliacoes FROM avaliacoes WHERE idusuario = " . $row->idusuario;
+                $sql_avaliacao = "SELECT COUNT(*) AS total_avaliacoes FROM avaliacoes WHERE idaluno = " . $row->idusuario;
                 $res_avaliacao = $conn->query($sql_avaliacao);
                 $row_avaliacao = $res_avaliacao->fetch_object();
                 $avaliacao_realizada = $row_avaliacao->total_avaliacoes > 0;
@@ -32,7 +32,8 @@
                 if ($avaliacao_realizada) {
                     echo "<span class='text-success'>Avaliação já realizada</span>";
                 } else {
-                    echo "<button onclick=\"window.location.href='realizar-avaliacao.php?idusuario=" . $row->idusuario . "';\" class='btn btn-primary'>Realizar Avaliação</button>";
+                    echo "<button onclick=\"location.href='?page=realizar-avaliacao&idaluno=" . $row->idusuario . "';\" class='btn btn-primary'>Realizar Avaliação</button>";
+
                 }
                 echo "</td>";
                 echo "</tr>";

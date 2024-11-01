@@ -6,7 +6,6 @@ $stmt->bind_param("i", $_SESSION['login']);
 $stmt->execute();
 $result = $stmt->get_result();
 
-// Verifique se o usuário foi encontrado
 if ($result->num_rows > 0) {
     $user = $result->fetch_assoc();
 } else {
