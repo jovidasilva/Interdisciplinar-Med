@@ -22,28 +22,46 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 65%;
-            height: 100%;
-            background-color: green;
-            transform: skewX(-30deg);
+            width: 60vw;
+            height: 100vh;
+            background-color: #1d780b;
+            transform: skewX(-25deg);
             transform-origin: top left;
             z-index: 1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            box-shadow: 15px -10px 20px rgba(0, 0, 0, 0.5);
+            padding: 1vh 6vw;
+        }
+
+        .logo-container {
+            transform: skewX(25deg);
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            height: auto;
+        }
+
+        .logo-container img {
+            max-width: 70%;
+            width: auto;
+            height: auto;
+            max-height: 40vh;
         }
 
         .card-login {
             position: relative;
             z-index: 2;
             padding: 2rem;
-            width: 300px;
+            width: 90vw;
+            max-width: 300px;
             background-color: white;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
             border-radius: 8px;
             text-align: center;
-        }
-
-        .card-login h1 {
-            margin-bottom: 1.5rem;
-            font-weight: bold;
+            margin-left: auto;
+            margin-right: 5vw;
         }
 
         .card-login input {
@@ -54,34 +72,84 @@
             border: 1px solid #ccc;
         }
 
-        button {
+        .card-login button {
             width: 100%;
             padding: 0.5rem;
-            background-color: green;
+            background-color: #299E12;
             color: white;
             border: none;
             border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
-            margin-bottom: 3px;
+            margin-bottom: 1rem;
         }
 
         .card-login button:hover {
-            background-color: darkgreen;
+            background-color: #217b10;
+        }
+
+        .card-login .register-link {
+            color: #299E12;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .card-login .register-link:hover {
+            color: #217b10;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .box-green {
+                width: 70vw;
+                transform: skewX(-15deg);
+            }
+
+            .logo-container img {
+                max-width: 60%;
+                max-height: 30vh;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .box-green {
+                width: 80vw;
+                transform: skewX(-10deg);
+            }
+
+            .logo-container {
+                padding-top: 2vh;
+                padding-left: 1vw;
+            }
+
+            .logo-container img {
+                max-width: 50%;
+                max-height: 20vh;
+            }
+
+            .card-login {
+                width: 85vw;
+                margin-right: 3vw;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="box-green"></div>
+    <div class="box-green">
+        <div class="logo-container">
+            <img src="img/LogoCeuma.png" alt="Logo CEUMA">
+        </div>
+    </div>
     <div class="card-login">
         <h1>Acesso</h1>
         <form action="cadastro_e_login/login.php" method="POST">
-            <input type="text" name=login placeholder="login">
-            <input type="password" name="senha" placeholder="senha">
+            <input type="text" name="login" placeholder="Login" required>
+            <input type="password" name="senha" placeholder="Senha" required>
             <button type="submit">Login</button>
         </form>
-        <button onclick="location.href='cadastro_e_login/cadastro.php'">Cadastro</button>
+        <span class="register-link" onclick="location.href='cadastro_e_login/cadastro.php'">Ainda não possui um cadastro?</span>
     </div>
 </body>
 
