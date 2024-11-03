@@ -1,4 +1,4 @@
-<nav class="navbar navbar-home">
+<nav class="navbar">
     <div class="container-fluid">
         <a href="<?php echo BASE_URL; ?>/includes/redirecionar.php" class="nodec">
             <h2 class="navbar-brand">SISTEMA MEDICINA</h2>

@@ -29,7 +29,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastrar</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
             margin: 0;
@@ -38,20 +37,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: white;
-            overflow: hidden;
-        }
-
-        .box-green {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 65%;
-            height: 100%;
             background-color: green;
-            transform: skewX(-30deg);
-            transform-origin: top left;
-            z-index: 1;
+            overflow: hidden;
+            background-image: url('../img/bg.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-position: center;
+
         }
 
         .card-login {
@@ -59,11 +52,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             z-index: 2;
             padding: 2rem;
             width: 500px;
-            background-color: white;
+            color: #333;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
             border-radius: 8px;
             text-align: center;
+            background: rgba(255, 255, 255, 0.3); 
+            backdrop-filter: blur(10px);
         }
+
         .card-login form {
             text-align: left;
         }
@@ -84,7 +80,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .card-login button {
             width: 20%;
             padding: 0.5rem;
-            background-color: green;
+            background-color: rgb(0, 94, 0);
             color: white;
             border: none;
             border-radius: 5px;
@@ -94,13 +90,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         .card-login button:hover {
-            background-color: darkgreen;
+            background-color: rgb(0, 80, 0);
         }
     </style>
 </head>
 
 <body>
-    <div class="box-green"></div>
     <div class="card-login">
         <h3 id="cadastro-title">Realize seu cadastro</h3>
         <form action="" method="POST">
