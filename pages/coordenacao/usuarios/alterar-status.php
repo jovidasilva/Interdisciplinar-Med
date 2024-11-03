@@ -5,7 +5,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuarios'])) {
     $usuarios = $_POST['usuarios'];
 
     foreach ($usuarios as $usuario) {
-        // Consultar o status atual do usuário
         $sql = "SELECT ativo FROM usuarios WHERE idusuario = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $usuario);

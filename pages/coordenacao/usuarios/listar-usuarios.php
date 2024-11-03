@@ -5,8 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciar Usuários</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.4/dist/sweetalert2.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.4/dist/sweetalert2.all.min.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="../../../css/style.css">
     <style>
@@ -59,27 +57,6 @@
         die("Erro na consulta SQL: " . $conn->error);
     }
 
-    $alert_showed = false;
-    $alert_type = "";
-
-    switch (@$_REQUEST['alert']) {
-        case '1':
-            $alert_showed = true;
-            $alert_type = "alert_alterar();";
-            break;
-        case '2':
-            $alert_showed = true;
-            $alert_type = "alert_erro_alterar();";
-            break;
-        case '3':
-            $alert_showed = true;
-            $alert_type = "alert_excluir();";
-            break;
-        case '4':
-            $alert_showed = true;
-            $alert_type = "alert_erro_excluir();";
-            break;
-    }
     ?>
 
     <div class="container mt-3">
@@ -133,61 +110,6 @@
     </div>
 
     <script>
-        function alert_alterar() {
-            Swal.fire({
-                position: "top",
-                icon: "success",
-                title: "Tipo(s) alterado(s) com sucesso.",
-                showConfirmButton: false,
-                timer: 1500
-            });
-        }
-
-        function alert_erro_alterar() {
-            Swal.fire({
-                icon: "error",
-                title: "Erro alterar",
-                text: "Não foi possível alterar o tipo.",
-                showConfirmButton: true,
-            });
-        }
-
-        function alert_excluir() {
-            Swal.fire({
-                position: "top",
-                icon: "success",
-                title: "Usuário(s) excluído(s) com sucesso.",
-                showConfirmButton: false,
-                timer: 1500
-            });
-        }
-
-        function alert_erro_excluir() {
-            Swal.fire({
-                icon: "error",
-                title: "Erro excluir",
-                text: "Não foi possível excluir o(s) usuário(s).",
-                showConfirmButton: true,
-            });
-        }
-
-        function alert_selecionar_tipo() {
-            Swal.fire({
-                icon: "error",
-                title: "Selecione um tipo",
-                text: "Você deve selecionar algum tipo!",
-                showConfirmButton: true,
-            });
-        }
-
-        function alert_selecionar_usuario() {
-            Swal.fire({
-                icon: "error",
-                title: "Selecione um usuário",
-                text: "Nenhum usuário selecionado!",
-                showConfirmButton: true,
-            });
-        }
 
         function selecionarTodos(selectAllCheckbox) {
             const checkboxes = document.querySelectorAll('input[name="usuarios[]"]');
@@ -256,17 +178,6 @@
             form.method = 'POST';
             form.submit();
         }
-
-        document.addEventListener("DOMContentLoaded", function() {
-            <?php if ($alert_showed): ?>
-                <?php echo $alert_type; ?>
-
-                if (typeof window.history.replaceState === 'function') {
-                    const url = window.location.href.split("?")[0];
-                    window.history.replaceState(null, null, url);
-                }
-            <?php endif; ?>
-        });
     </script>
 
 </body>
