@@ -29,7 +29,7 @@
 
                     if ($qtd > 0) {
                         while ($row = $res->fetch_object()) {
-                            $stmtCount = $conn->prepare("SELECT COUNT(*) as total FROM modulo_alunos WHERE idmodulo = ?");
+                            $stmtCount = $conn->prepare("SELECT COUNT(*) as total FROM modulos_alunos WHERE idmodulo = ?");
                             $stmtCount->bind_param("i", $row->idmodulo);
                             $stmtCount->execute();
                             $resultCount = $stmtCount->get_result();

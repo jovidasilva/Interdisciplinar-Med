@@ -15,7 +15,7 @@
                 <p>Selecione um período primeiro</p>
             </div>
 
-            <form id="rodizioForm" method="POST" action="processar-rodizio.php">
+            <form id="rodizioForm" method="POST" action="processar-rodizios.php">
                 <input type="hidden" name="periodo" value="" id="hiddenPeriodo">
 
                 <div class="form mt-3">
@@ -37,8 +37,8 @@
                     <input type="hidden" id="modulo3" name="modulo3">
                 </div>
                 <div class="form mt-3">
-                    <input type="checkbox" name="shuffle" id="shuffle">
-                    <label for="shuffle">Não preencher grupos</label>
+                    <input type="checkbox" name="no_fill_groups" id="no_fill_groups">
+                    <label for="no_fill_groups">Não preencher grupos</label>
                 </div>
 
                 <button type="button" class="btn btn-secondary mt-3" onclick="gerarRodizios()">Gerar rodizio</button>

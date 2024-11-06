@@ -29,14 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && isset($_P
                 $idusuario = $row['idusuario'];
 
 
-                $stmtCheck = $conn->prepare("SELECT * FROM modulo_alunos WHERE idmodulo = ? AND idusuario = ?");
+                $stmtCheck = $conn->prepare("SELECT * FROM modulos_alunos WHERE idmodulo = ? AND idusuario = ?");
                 $stmtCheck->bind_param("ii", $idmodulo, $idusuario);
                 $stmtCheck->execute();
                 $checkResult = $stmtCheck->get_result();
 
                 if ($checkResult->num_rows === 0) {
 
-                    $stmtInsert = $conn->prepare("INSERT INTO modulo_alunos (idmodulo, idusuario) VALUES (?, ?)");
+                    $stmtInsert = $conn->prepare("INSERT INTO modulos_alunos (idmodulo, idusuario) VALUES (?, ?)");
                     $stmtInsert->bind_param("ii", $idmodulo, $idusuario);
                     if ($stmtInsert->execute()) {
                         $alunosInscritos[] = $nomeAluno;

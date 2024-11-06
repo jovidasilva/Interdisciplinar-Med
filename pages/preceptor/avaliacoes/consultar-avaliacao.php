@@ -7,7 +7,7 @@ if (empty($_SESSION["login"])) {
 
 require_once '../../cfg/config.php';
 
-$id_usuario = $_GET['id']; // Obtém o ID do usuário da URL
+$id_usuario = $_GET['id'];
 $query = "SELECT a.nota, a.data_avaliacao, m.nome AS modulo_nome 
           FROM avaliacoes a 
           JOIN modulos m ON a.idmodulo = m.idmodulos 

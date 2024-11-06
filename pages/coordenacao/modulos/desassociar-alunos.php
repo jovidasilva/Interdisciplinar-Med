@@ -5,7 +5,7 @@ if (isset($_POST['alunosDesassociar']) && isset($_GET['idmodulo'])) {
     $idmodulo = $_GET['idmodulo'];
     $alunos = $_POST['alunosDesassociar'];
 
-    $stmt = $conn->prepare("DELETE FROM modulo_alunos WHERE idmodulo = ? AND idusuario = ?");
+    $stmt = $conn->prepare("DELETE FROM modulos_alunos WHERE idmodulo = ? AND idusuario = ?");
     foreach ($alunos as $idusuario) {
         $stmt->bind_param("ii", $idmodulo, $idusuario);
         $stmt->execute();

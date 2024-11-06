@@ -1,21 +1,21 @@
 <?php
 require '../../../cfg/config.php';
 
-// Consulta para obter os rodízios e agrupar por módulo e grupo
+// Consulta para obter os rodízios com módulos e grupos
 $query = "
 SELECT 
     r.idrodizio, 
     r.inicio, 
     r.fim, 
     m.nome_modulo AS modulo, 
-    g.nome_grupo AS grupo
+    IFNULL(g.nome_grupo, 'não atribuído') AS grupo
 FROM 
     rodizios r
-JOIN 
+LEFT JOIN 
     rodizios_subgrupos rs ON r.idrodizio = rs.idrodizio
-JOIN 
+LEFT JOIN 
     subgrupos sg ON rs.idsubgrupo = sg.idsubgrupo
-JOIN 
+LEFT JOIN 
     grupos g ON sg.idgrupo = g.idgrupo
 JOIN 
     modulos m ON r.idmodulo = m.idmodulo
@@ -33,7 +33,7 @@ if ($result) {
         $inicio = $row['inicio'];
         $fim = $row['fim'];
         $modulo = $row['modulo'];
-        $grupo = $row['grupo'];
+        $grupo = $row['grupo'] ?: 'não atribuído';  // Define "não atribuído" quando grupo não existe
 
         $periodo_key = $inicio . ' até ' . $fim;
 
@@ -52,6 +52,7 @@ if ($result) {
     }
 }
 
+// Consulta para obter a lista de módulos (para uso em filtros, caso necessário)
 $query_modulos = "SELECT DISTINCT nome_modulo FROM modulos ORDER BY nome_modulo";
 $result_modulos = $conn->query($query_modulos);
 
@@ -59,7 +60,7 @@ $filtro_modulo = isset($_POST['filtro']) ? $_POST['filtro'] : '';
 ?>
 
 <div class="container mt-3">
-    <h1>Rodízios Ativos  <button onclick="location.href='?page=gerar-rodizios'" class="btn btn-success">Gerar Rodízios</button></h1>
+    <h1>Rodízios Ativos <button onclick="location.href='?page=gerar-rodizios'" class="btn btn-success">Gerar Rodízios</button></h1>
     <?php
     if (empty($rodizios_formatados)) {
         echo "<p>Nenhum rodízio encontrado.</p>";
@@ -72,9 +73,6 @@ $filtro_modulo = isset($_POST['filtro']) ? $_POST['filtro'] : '';
         }
     }
     ?>
-
 </div>
 
 <?php $conn->close(); ?>
-
-

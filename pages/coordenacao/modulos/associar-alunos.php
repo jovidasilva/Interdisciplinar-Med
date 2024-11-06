@@ -5,7 +5,7 @@ if (isset($_POST['alunos']) && isset($_GET['idmodulo'])) {
     $idmodulo = $_GET['idmodulo'];
     $alunos = $_POST['alunos'];
 
-    $stmt = $conn->prepare("INSERT INTO modulo_alunos (idmodulo, idusuario) VALUES (?, ?)");
+    $stmt = $conn->prepare("INSERT INTO modulos_alunos (idmodulo, idusuario) VALUES (?, ?)");
     foreach ($alunos as $idusuario) {
         $stmt->bind_param("ii", $idmodulo, $idusuario);
         $stmt->execute();

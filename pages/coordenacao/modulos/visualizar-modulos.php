@@ -18,10 +18,10 @@ if (isset($_GET['idmodulo'])) {
 
     $semestreAtual = $modulo['periodo'];
 
-    $alunosNaoAssociados = $conn->query("SELECT idusuario, nome FROM usuarios WHERE ativo = 1 AND tipo = 0 AND periodo = '$semestreAtual' AND idusuario NOT IN (SELECT idusuario FROM modulo_alunos WHERE idmodulo = $idmodulo)");
+    $alunosNaoAssociados = $conn->query("SELECT idusuario, nome FROM usuarios WHERE ativo = 1 AND tipo = 0 AND periodo = '$semestreAtual' AND idusuario NOT IN (SELECT idusuario FROM modulos_alunos WHERE idmodulo = $idmodulo)");
     $numAlunosNaoAssociados = $alunosNaoAssociados->num_rows;
 
-    $alunosAssociados = $conn->query("SELECT u.idusuario, u.nome, u.registro FROM usuarios u JOIN modulo_alunos ma ON u.idusuario = ma.idusuario WHERE ma.idmodulo = $idmodulo");
+    $alunosAssociados = $conn->query("SELECT u.idusuario, u.nome, u.registro FROM usuarios u JOIN modulos_alunos ma ON u.idusuario = ma.idusuario WHERE ma.idmodulo = $idmodulo");
     $numAlunosAssociados = $alunosAssociados->num_rows;
 } else {
     echo "ID do módulo não informado ou inválido.";

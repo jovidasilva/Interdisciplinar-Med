@@ -43,7 +43,7 @@
             </a>
         </li>
         <li class="item-menu">
-            <a href="<?php echo BASE_URL; ?>/pages/coordenacao/avaliacoes.php">
+            <a href="<?php echo BASE_URL; ?>/pages/coordenacao/avaliacoes/avaliacoes.php">
                 <span class="icon"><i class="bi bi-journal-text"></i></span>
                 <span class="txt-link">Avaliações</span>
             </a>

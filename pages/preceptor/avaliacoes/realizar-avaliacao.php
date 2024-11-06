@@ -1,18 +1,14 @@
 <?php
 include('../../../cfg/config.php');
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
 $idaluno = isset($_GET['idaluno']) ? intval($_GET['idaluno']) : null;
+$idpreceptor = isset($_SESSION['idusuario']) ? $_SESSION['idusuario'] : null;
 
 if (!$idaluno) {
     echo "<script>alert('ID do aluno não informado ou inválido.'); location.href='avaliacoes.php';</script>";
     exit();
 }
 
-// Consulta para obter os módulos associados ao aluno
 $queryModulos = "
     SELECT m.idmodulo, m.nome_modulo 
     FROM modulos m
@@ -23,14 +19,61 @@ $stmtModulos->bind_param("i", $idaluno);
 $stmtModulos->execute();
 $resultModulos = $stmtModulos->get_result();
 
-// Consulta para obter as perguntas da avaliação
 $queryPerguntas = "SELECT titulo, descricao FROM perguntas_avaliacoes";
 $resultPerguntas = $conn->query($queryPerguntas);
 ?>
+
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f7f9fc;
+    }
+
+    h3 {
+        color: green;
+        font-weight: bold;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-container {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        max-width: 700px;
+        margin: auto;
+    }
+
+    .form-select,
+    .form-label,
+    .btn {
+        font-size: 1rem;
+    }
+
+    .fieldset-container {
+        background: #f1f4f9;
+        border-radius: 5px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .legend {
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #333;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border: none;
+        padding: 0.6rem 1.2rem;
+    }
+</style>
+
+
 <h3>Realizar Avaliação</h3>
-
-<form method="post" action="?page=processar-avaliacao&idaluno=<?php echo $idaluno; ?>&idpreceptor=<?php echo isset($_SESSION['login']['idusuario']) ? $_SESSION['login']['idusuario'] : ''; ?>">
-
+<form method="post" action="processar-avaliacao.php?<?php echo 'idaluno=' . $idaluno . '&idpreceptor=' . $idpreceptor; ?>">
     <div class="mb-3">
         <label for="modulo" class="form-label">Módulo</label>
         <select name="modulo" id="modulo" class="form-select" required>
