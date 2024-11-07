@@ -1,6 +1,6 @@
 <h1>Editar Módulo</h1>
 <?php
-$sql = "SELECT * FROM unidades WHERE id_unidade=" . intval($_REQUEST['id_unidade']);
+$sql = "SELECT * FROM unidades WHERE idunidade=" . intval($_REQUEST['idunidade']);
 $res = $conn->query($sql);
 
 if (!$res) {
@@ -14,10 +14,14 @@ if (!$row) {
 ?>
 <form action="acoes-unidades.php" method="POST">
     <input type="hidden" name="acao" value="editar">
-    <input type="hidden" name="id_unidade" value="<?php echo intval($row->id_unidade); ?>">
+    <input type="hidden" name="idunidade" value="<?php echo intval($row->idunidade); ?>">
     <div class="mb-3">
         <label>Nome da unidade</label>
         <input type="text" name="nome_unidade" value="<?php echo htmlspecialchars($row->nome_unidade); ?>" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Endereco</label>
+        <input type="text" name="endereco_unidade" value="<?php echo htmlspecialchars($row->endereco_unidade); ?>" class="form-control" required>
     </div>
     <div class="mb-3">
         <button type="submit" class="btn btn-success">Enviar</button>

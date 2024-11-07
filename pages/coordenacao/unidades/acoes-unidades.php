@@ -2,40 +2,42 @@
 require('../../../cfg/config.php');
 switch ($_REQUEST['acao']) {
     case 'cadastrar':
-        if (!empty($_POST['nome_unidade'])) {
+        if (!empty($_POST['nome_unidade']) && !empty($_POST['endereco_unidade'])) {
             $nome_unidade = $conn->real_escape_string($_POST['nome_unidade']);
-            $sql = "INSERT INTO unidades (nome_unidade) VALUES ('$nome_unidade')";
+            $endereco_unidade = $conn->real_escape_string($_POST['endereco_unidade']);
+            $sql = "INSERT INTO unidades (nome_unidade, endereco_unidade) VALUES ('$nome_unidade', '$endereco_unidade')";
             $res = $conn->query($sql);
             if ($res == true) {
-                echo "<script>alert('Módulo cadastrado com sucesso!');</script>";
+                echo "<script>alert('Unidade cadastrada com sucesso!');</script>";
             } else {
-                echo "<script>alert('Não foi possivel cadastrar.');</script>";
+                echo "<script>alert('Não foi possível cadastrar a unidade.');</script>";
             }
             echo "<script>location.href='unidades.php';</script>";
         } else {
-            echo "<script>alert('O campo nome do módulo é obrigatório.');</script>";
+            echo "<script>alert('Os campos nome e endereço da unidade são obrigatórios.');</script>";
         }
         break;
     case 'editar':
-        $id_unidade = intval($_POST['id_unidade']);
+        $idunidade = intval($_POST['idunidade']);
         $nome_unidade = $conn->real_escape_string($_POST['nome_unidade']);
+        $endereco_unidade = $conn->real_escape_string($_POST['endereco_unidade']);
 
-        $sql = "UPDATE unidades SET nome_unidade='$nome_unidade' WHERE id_unidade=$id_unidade";
+        $sql = "UPDATE unidades SET nome_unidade='$nome_unidade', endereco_unidade='$endereco_unidade' WHERE idunidade=$idunidade";
         if ($conn->query($sql) === TRUE) {
-            echo "<script>alert('Módulo alterado com sucesso!');</script>";
+            echo "<script>alert('Unidade alterada com sucesso!');</script>";
         } else {
-            echo "<script>alert('Não foi possivel editar.');</script>";
+            echo "<script>alert('Não foi possível editar a unidade.');</script>";
         }
         echo "<script>location.href='unidades.php';</script>";
         break;
     case 'excluir':
-        if (isset($_REQUEST['id_unidade'])) {
-            $id_unidade = intval($_REQUEST['id_unidade']);
-            $sql = "DELETE FROM unidades WHERE id_unidade = $id_unidade";
+        if (isset($_REQUEST['idunidade'])) {
+            $idunidade = intval($_REQUEST['idunidade']);
+            $sql = "DELETE FROM unidades WHERE idunidade = $idunidade";
             if ($conn->query($sql) === TRUE) {
-                echo "<script>alert('Módulo excluído com sucesso!');</script>";
+                echo "<script>alert('Unidade excluída com sucesso!');</script>";
             } else {
-                echo "<script>alert('Não foi possível excluir o módulo.');</script>";
+                echo "<script>alert('Não foi possível excluir a unidade.');</script>";
             }
             echo "<script>location.href='unidades.php';</script>";
         } else {

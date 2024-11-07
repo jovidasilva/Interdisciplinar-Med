@@ -6,6 +6,10 @@
         <input type="text" name="nome_unidade" class="form-control" required>
     </div>
     <div class="mb-3">
+        <label>Endereço</label>
+        <input type="text" name="endereco_unidade" class="form-control" required>
+    </div>
+    <div class="mb-3">
         <button type="submit" class="btn btn-success">Enviar</button>
         <a href="?page=listar-unidades" class="btn btn-secondary">Voltar</a>
     </div>

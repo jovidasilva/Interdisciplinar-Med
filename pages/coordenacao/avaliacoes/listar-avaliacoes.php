@@ -18,7 +18,8 @@ $result = $conn->query($query);
 
 ?>
 
-<h1>Listagem de Avaliações <button class="btn btn-secondary" onclick="location.href='?page=avaliacoes'">Voltar</button></h1>
+<h1>Listagem de Avaliações <button class="btn btn-secondary" onclick="location.href='?page=avaliacoes'">Voltar</button>
+</h1>
 <table class="table">
     <thead>
         <tr>
@@ -47,4 +48,5 @@ $result = $conn->query($query);
 </table>
 
 </body>
+
 </html>

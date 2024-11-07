@@ -47,6 +47,9 @@ if (empty($_SESSION["login"])) {
                         case 'detalhes-avaliacoes':
                             include('detalhes-avaliacoes.php');
                             break;
+                        case 'acoes-avaliacoes':
+                            include('acoes-avaliacoes.php');
+                            break;
                         default:
                             include('pag-base.php');
                             break;

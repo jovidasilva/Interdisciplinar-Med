@@ -1,7 +1,6 @@
 <?php
 require '../../../cfg/config.php';
 
-// Consulta para obter os rodízios com módulos e grupos
 $query = "
 SELECT 
     r.idrodizio, 
@@ -30,8 +29,8 @@ $result = $conn->query($query);
 $rodizios_formatados = [];
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        $inicio = $row['inicio'];
-        $fim = $row['fim'];
+        $inicio = date('d/m/Y', strtotime($row['inicio']));
+        $fim = date('d/m/Y', strtotime($row['fim']));
         $modulo = $row['modulo'];
         $grupo = $row['grupo'] ?: 'não atribuído';  // Define "não atribuído" quando grupo não existe
 
@@ -52,7 +51,6 @@ if ($result) {
     }
 }
 
-// Consulta para obter a lista de módulos (para uso em filtros, caso necessário)
 $query_modulos = "SELECT DISTINCT nome_modulo FROM modulos ORDER BY nome_modulo";
 $result_modulos = $conn->query($query_modulos);
 

@@ -36,6 +36,9 @@ include('../../../cfg/config.php');
                         case 'registrar-unidades':
                             include('registrar-unidades.php');
                             break;
+                        case 'visualizar-unidade':
+                            include('visualizar-unidade.php');
+                            break;
                         default:
                             include('listar-unidades.php');
                             break;
