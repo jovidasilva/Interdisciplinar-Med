@@ -39,6 +39,12 @@ include('../../../cfg/config.php');
                         case 'visualizar-unidade':
                             include('visualizar-unidade.php');
                             break;
+                        case 'associar-modulos':
+                            include('associar-modulos.php');
+                            break;
+                        case 'dessassociar-modulos':
+                            include('dessassociar-modulos.php');
+                            break;
                         default:
                             include('listar-unidades.php');
                             break;

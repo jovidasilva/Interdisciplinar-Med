@@ -37,9 +37,10 @@ if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../../css/style.css">
     <style>
-        body{
+        body {
             overflow-y: hidden;
         }
+
         .container-card {
             display: flex;
             gap: 20px;
@@ -71,26 +72,30 @@ if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {
             <div class="card">
                 <div class="card-header">
                     <h5>Módulos Associados à Unidade</h5>
+                    <div class="form-check">
+                        <input type="checkbox" id="selectAllAssociados" class="form-check-input"
+                            onchange="toggleCheckboxes(this, 'modulo-associado')">
+                        <label for="selectAllAssociados" class="form-check-label">Selecionar Todos</label>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <?php if ($nummodulosAssociados > 0): ?>
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Nome do Módulo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($modulo = $modulosAssociados->fetch_assoc()): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($modulo['nome_modulo']); ?></td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
-                    <?php else: ?>
-                        <p>Nenhum módulo associado.</p>
-                    <?php endif; ?>
+                    <form method="POST" action="?page=dessassociar-modulos&idunidade=<?php echo $idunidade; ?>">
+                        <?php if ($nummodulosAssociados > 0): ?>
+                            <?php while ($modulo = $modulosAssociados->fetch_assoc()): ?>
+                                <div class="form-check">
+                                    <input type="checkbox" name="modulos[]" value="<?php echo $modulo['idmodulo']; ?>"
+                                        class="form-check-input modulo-associado"
+                                        id="modulo-<?php echo $modulo['idmodulo']; ?>">
+                                    <label class="form-check-label" for="modulo-<?php echo $modulo['idmodulo']; ?>">
+                                        <?php echo htmlspecialchars($modulo['nome_modulo']); ?>
+                                    </label>
+                                </div>
+                            <?php endwhile; ?>
+                            <button type="submit" class="btn btn-danger mt-3">Desassociar Módulos</button>
+                        <?php else: ?>
+                            <p>Nenhum módulo associado.</p>
+                        <?php endif; ?>
+                    </form>
                 </div>
             </div>
 
@@ -98,16 +103,19 @@ if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {
                 <div class="card-header">
                     <h5>Módulos Não Associados à Unidade</h5>
                     <div class="form-check">
-                        <input type="checkbox" id="selectAllNaoAssociados" class="form-check-input" onchange="toggleCheckboxes(this, 'modulo-nao-associado')">
+                        <input type="checkbox" id="selectAllNaoAssociados" class="form-check-input"
+                            onchange="toggleCheckboxes(this, 'modulo-nao-associado')">
                         <label for="selectAllNaoAssociados" class="form-check-label">Selecionar Todos</label>
                     </div>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="associar-modulos.php?idunidade=<?php echo $idunidade; ?>">
+                    <form method="POST" action="?page=associar-modulos&idunidade=<?php echo $idunidade; ?>">
                         <?php if ($nummodulosNaoAssociados > 0): ?>
                             <?php while ($modulo = $modulosNaoAssociados->fetch_assoc()): ?>
                                 <div class="form-check">
-                                    <input type="checkbox" name="modulos[]" value="<?php echo $modulo['idmodulo']; ?>" class="form-check-input modulo-nao-associado" id="modulo-<?php echo $modulo['idmodulo']; ?>">
+                                    <input type="checkbox" name="modulos[]" value="<?php echo $modulo['idmodulo']; ?>"
+                                        class="form-check-input modulo-nao-associado"
+                                        id="modulo-<?php echo $modulo['idmodulo']; ?>">
                                     <label class="form-check-label" for="modulo-<?php echo $modulo['idmodulo']; ?>">
                                         <?php echo htmlspecialchars($modulo['nome_modulo']); ?>
                                     </label>
