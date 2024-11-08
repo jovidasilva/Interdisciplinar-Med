@@ -4,7 +4,7 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 include('../cfg/config.php');
 
-$stmt = $conn->prepare("SELECT nome, email, telefone, registro, login FROM usuarios WHERE idusuario = ?");
+$stmt = $conn->prepare("SELECT nome, email, telefone, registro, login, tipo FROM usuarios WHERE idusuario = ?");
 $stmt->bind_param("i", $_SESSION['idusuario']);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -23,6 +23,22 @@ $email = $_SESSION['form_data']['email'] ?? $user['email'];
 $telefone = $_SESSION['form_data']['telefone'] ?? $user['telefone'];
 
 unset($_SESSION['form_data']);
+
+switch ($user['tipo']) {
+    case 0:
+        $homeUrl = BASE_URL . '/pages/aluno/home.php';
+        break;
+    case 1:
+        $homeUrl = BASE_URL . '/pages/preceptor/home.php';
+        break;
+    case 2:
+    case 3:
+        $homeUrl = BASE_URL . '/pages/coordenacao/home.php';
+        break;
+    default:
+        $homeUrl = BASE_URL . '/pages/home.php'; // fallback in case of an unknown type
+        break;
+}
 ?>
 
 <div class="container mt-5">
@@ -55,7 +71,7 @@ unset($_SESSION['form_data']);
         <input type="hidden" name="idusuario" value="<?php echo $_SESSION['idusuario']; ?>">
         <input type="hidden" name="action" value="alterar_dados_contato">
         <button type="submit" class="btn btn-success">Salvar Alterações</button>
-        <a onclick="history.back()" class="btn btn-secondary">Voltar</a>
+        <a href="<?php echo $homeUrl; ?>" class="btn btn-secondary">Voltar</a>
     </form>
 
     <!-- Modal para alterar login -->
