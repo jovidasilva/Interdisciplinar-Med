@@ -1,7 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+#saidofakegpt
 include('../../../cfg/config.php');
 
 if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {

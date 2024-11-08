@@ -1,4 +1,5 @@
 <?php
+#saidofakegpt
 session_start();
 
 include('../cfg/config.php');
