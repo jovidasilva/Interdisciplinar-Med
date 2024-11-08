@@ -8,7 +8,7 @@ if (!defined('USER')) {
 }
 
 if (!defined('PASS')) {
-    define('PASS', '@Pedro0411');
+    define('PASS', '');
 }
 
 if (!defined('BASE')) {
