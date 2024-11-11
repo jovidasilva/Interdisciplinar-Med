@@ -1,0 +1,2 @@
+nome,email,telefone,login,senha,tipo(0 = aluno, 1 = preceptor), registro(crm ou ra), ativo (0 = não 1, = sim), periodo (caso seja aluno, periodos são 9, 10, 11 ou 12, caso seja preceptor, pode usar 0)
+Preceptor,preceptor@ceuma.com,(99) 93824-4321,2,1234,1,123456,1,9

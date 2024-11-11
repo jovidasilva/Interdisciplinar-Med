@@ -1,0 +1,276 @@
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+
+-- Criação do schema
+CREATE SCHEMA IF NOT EXISTS `proj_internato` DEFAULT CHARACTER SET utf8mb3;
+USE `proj_internato`;
+
+-- -----------------------------------------------------
+-- Tabela de Usuários com papéis específicos
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `usuarios` (
+  `idusuario` INT NOT NULL AUTO_INCREMENT,
+  `nome` VARCHAR(90) NULL DEFAULT NULL,
+  `email` VARCHAR(90) NULL DEFAULT NULL,
+  `telefone` VARCHAR(90) NULL DEFAULT NULL,
+  `login` VARCHAR(90) NULL DEFAULT NULL,
+  `senha` VARCHAR(90) NULL DEFAULT NULL,
+  `tipo` INT NOT NULL DEFAULT '-1',
+  `ativo` TINYINT NULL DEFAULT 1,
+  `registro` VARCHAR(90) NULL DEFAULT NULL,
+  `periodo` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`idusuario`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- -----------------------------------------------------
+-- Tabela para Grupos e Subgrupos de Alunos
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `grupos` (
+  `idgrupo` INT NOT NULL AUTO_INCREMENT,
+  `nome_grupo` VARCHAR(5) NOT NULL,
+  PRIMARY KEY (`idgrupo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `subgrupos` (
+  `idsubgrupo` INT NOT NULL AUTO_INCREMENT,
+  `idgrupo` INT NOT NULL,
+  `nome_subgrupo` VARCHAR(5) NOT NULL,
+  PRIMARY KEY (`idsubgrupo`),
+  INDEX `fk_grupo_idx` (`idgrupo` ASC),
+  CONSTRAINT `fk_subgrupos_grupos`
+    FOREIGN KEY (`idgrupo`)
+    REFERENCES `grupos` (`idgrupo`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- -----------------------------------------------------
+-- Tabela de Unidades e Departamentos (setores)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `unidades` (
+  `idunidade` INT NOT NULL AUTO_INCREMENT,
+  `nome_unidade` VARCHAR(90) NOT NULL,
+  `endereco_unidade` VARCHAR(90) NOT NULL,
+  PRIMARY KEY (`idunidade`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `departamentos` (
+  `iddepartamento` INT NOT NULL AUTO_INCREMENT,
+  `nome_departamento` VARCHAR(100) NULL DEFAULT NULL,
+  `idunidade` INT NOT NULL,
+  PRIMARY KEY (`iddepartamento`, `idunidade`),
+  INDEX `fk_departamentos_unidades1_idx` (`idunidade` ASC),
+  CONSTRAINT `fk_departamentos_unidades1`
+    FOREIGN KEY (`idunidade`)
+    REFERENCES `unidades` (`idunidade`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- -----------------------------------------------------
+-- Tabela de Módulos e Alunos relacionados ao Módulo
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `modulos` (
+  `idmodulo` INT NOT NULL AUTO_INCREMENT,
+  `nome_modulo` VARCHAR(90) NOT NULL,
+  `periodo` INT NOT NULL,
+  PRIMARY KEY (`idmodulo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `modulos_alunos` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `idmodulo` INT NOT NULL,
+  `idusuario` INT NOT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_modulo_idx` (`idmodulo` ASC),
+  INDEX `fk_usuario_idx` (`idusuario` ASC),
+  CONSTRAINT `fk_modulo_alunos_modulo`
+    FOREIGN KEY (`idmodulo`)
+    REFERENCES `modulos` (`idmodulo`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_modulo_alunos_usuario`
+    FOREIGN KEY (`idusuario`)
+    REFERENCES `usuarios` (`idusuario`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- -----------------------------------------------------
+-- Tabelas de Avaliações, Perguntas e Respostas
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `avaliacoes` (
+  `idavaliacao` INT NOT NULL AUTO_INCREMENT,
+  `idaluno` INT NOT NULL,
+  `data_avaliacao` DATE NOT NULL,
+  `nota` INT NOT NULL,
+  `idpreceptor` INT NOT NULL,
+  `idmodulo` INT NOT NULL,
+  PRIMARY KEY (`idavaliacao`),
+  INDEX `fk_aluno_idx` (`idaluno` ASC),
+  INDEX `fk_preceptor_idx` (`idpreceptor` ASC),
+  INDEX `fk_modulo_idx` (`idmodulo` ASC),
+  CONSTRAINT `fk_avaliacao_aluno`
+    FOREIGN KEY (`idaluno`)
+    REFERENCES `usuarios` (`idusuario`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_avaliacao_preceptor`
+    FOREIGN KEY (`idpreceptor`)
+    REFERENCES `usuarios` (`idusuario`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_avaliacao_modulo`
+    FOREIGN KEY (`idmodulo`)
+    REFERENCES `modulos` (`idmodulo`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `perguntas_avaliacoes` (
+  `idpergunta` INT NOT NULL AUTO_INCREMENT,
+  `descricao` TEXT NOT NULL,
+  `tipo_resposta` ENUM('texto', 'numerico', 'escala') NOT NULL,
+  `ativo` TINYINT NOT NULL DEFAULT '1',
+  `titulo` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`idpergunta`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `avaliacoes_respostas` (
+  `idresposta` INT NOT NULL AUTO_INCREMENT,
+  `idavaliacao` INT NOT NULL,
+  `idpergunta` INT NOT NULL,
+  `resposta` VARCHAR(255),
+  PRIMARY KEY (`idresposta`),
+  CONSTRAINT `fk_resposta_avaliacao`
+    FOREIGN KEY (`idavaliacao`)
+    REFERENCES `avaliacoes` (`idavaliacao`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_resposta_pergunta`
+    FOREIGN KEY (`idpergunta`)
+    REFERENCES `perguntas_avaliacoes` (`idpergunta`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- -----------------------------------------------------
+-- Rodízios e Subgrupos em Rodízios
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rodizios` (
+  `idrodizio` INT NOT NULL AUTO_INCREMENT,
+  `periodo` INT NOT NULL,
+  `inicio` DATE NOT NULL,
+  `fim` DATE NOT NULL,
+  `idmodulo` INT NOT NULL,
+  `grupos` CHAR(1) NOT NULL,
+  PRIMARY KEY (`idrodizio`),
+  INDEX `fk_rodizio_modulo_idx` (`idmodulo` ASC),
+  CONSTRAINT `fk_rodizio_modulo`
+    FOREIGN KEY (`idmodulo`)
+    REFERENCES `modulos` (`idmodulo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `rodizios_subgrupos` (
+  `idrodizio_subgrupo` INT NOT NULL AUTO_INCREMENT,
+  `idrodizio` INT NOT NULL,
+  `idsubgrupo` INT NOT NULL,
+  PRIMARY KEY (`idrodizio_subgrupo`),
+  INDEX `fk_rodizio_idx` (`idrodizio` ASC),
+  INDEX `fk_subgrupo_idx` (`idsubgrupo` ASC),
+  CONSTRAINT `fk_rodiziosub_rodizio`
+    FOREIGN KEY (`idrodizio`)
+    REFERENCES `rodizios` (`idrodizio`),
+  CONSTRAINT `fk_rodiziosub_subgrupo`
+    FOREIGN KEY (`idsubgrupo`)
+    REFERENCES `subgrupos` (`idsubgrupo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- -----------------------------------------------------
+-- Unidades relacionadas a Módulos
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `unidades_modulos` (
+  `idunidade_modulo` INT NOT NULL AUTO_INCREMENT,
+  `idmodulo` INT NOT NULL,
+  `idunidade` INT NOT NULL,
+  PRIMARY KEY (`idunidade_modulo`),
+  INDEX `fk_unidade_modulo_unidade_idx` (`idunidade` ASC),
+  INDEX `fk_unidade_modulo_modulo_idx` (`idmodulo` ASC),
+  CONSTRAINT `fk_unidade_modulo_unidade`
+    FOREIGN KEY (`idunidade`)
+    REFERENCES `unidades` (`idunidade`)
+    ON DELETE NO ACTION,
+  CONSTRAINT `fk_unidade_modulo_modulo`
+    FOREIGN KEY (`idmodulo`)
+    REFERENCES `modulos` (`idmodulo`)
+    ON DELETE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- Tabela para relacionar preceptores com unidades
+CREATE TABLE preceptores_unidades (
+    idpreceptor_unidade INT AUTO_INCREMENT PRIMARY KEY,
+    idusuario INT NOT NULL,                -- ID do preceptor (chave estrangeira para a tabela de usuários)
+    idunidade INT NOT NULL,                -- ID da unidade (chave estrangeira para a tabela de unidades)
+    data_inicio DATE,                      -- Data de início da vinculação do preceptor com a unidade
+    data_fim DATE,                         -- Data de término (opcional), caso a vinculação seja temporária
+    FOREIGN KEY (idusuario) REFERENCES usuarios(idusuario),
+    FOREIGN KEY (idunidade) REFERENCES unidades(idunidade)
+);
+
+-- Tabela para relacionar preceptores com módulos
+CREATE TABLE preceptores_modulos (
+    idpreceptor_modulo INT AUTO_INCREMENT PRIMARY KEY,
+    idusuario INT NOT NULL,                -- ID do preceptor (chave estrangeira para a tabela de usuários)
+    idmodulo INT NOT NULL,                 -- ID do módulo (chave estrangeira para a tabela de módulos)
+    data_inicio DATE,                      -- Data de início da supervisão do módulo
+    data_fim DATE,                         -- Data de término (opcional), caso a supervisão seja temporária
+    FOREIGN KEY (idusuario) REFERENCES usuarios(idusuario),
+    FOREIGN KEY (idmodulo) REFERENCES modulos(idmodulo)
+);
+
+-- Tabela para registrar os horários de supervisão e atendimento dos preceptores
+CREATE TABLE horarios_supervisao (
+    idhorario INT AUTO_INCREMENT PRIMARY KEY,
+    idpreceptor INT NOT NULL,              -- ID do preceptor (chave estrangeira para a tabela de usuários)
+    idmodulo INT,                          -- ID do módulo (opcional), caso o horário esteja vinculado a um módulo específico
+    idunidade INT,                         -- ID da unidade (opcional), caso o horário esteja vinculado a uma unidade específica
+    dia_semana ENUM('Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo') NOT NULL,
+    hora_inicio TIME NOT NULL,             -- Horário de início da supervisão
+    hora_fim TIME NOT NULL,                -- Horário de término da supervisão
+    FOREIGN KEY (idpreceptor) REFERENCES usuarios(idusuario),
+    FOREIGN KEY (idmodulo) REFERENCES modulos(idmodulo),
+    FOREIGN KEY (idunidade) REFERENCES unidades(idunidade)
+);
+
+-- -----------------------------------------------------
+-- Table `proj_internato`.`alunos_subgrupos`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `proj_internato`.`alunos_subgrupos` (
+  `idaluno_subgrupo` INT NOT NULL AUTO_INCREMENT,
+  `idusuario` INT NOT NULL,
+  `idsubgrupo` INT NOT NULL,
+  PRIMARY KEY (`idaluno_subgrupo`),
+  INDEX `idusuario` (`idusuario` ASC) VISIBLE,
+  INDEX `idsubgrupo` (`idsubgrupo` ASC) VISIBLE,
+  CONSTRAINT `alunos_subgrupos_ibfk_1`
+    FOREIGN KEY (`idusuario`)
+    REFERENCES `proj_internato`.`usuarios` (`idusuario`),
+  CONSTRAINT `alunos_subgrupos_ibfk_2`
+    FOREIGN KEY (`idsubgrupo`)
+    REFERENCES `proj_internato`.`subgrupos` (`idsubgrupo`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb3;
+
+CREATE TABLE preceptores_subgrupos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    idusuario INT NOT NULL, -- Referência ao usuário que é preceptor
+    idsubgrupo INT NOT NULL, -- Referência ao subgrupo que o preceptor supervisiona
+    data_inicio DATE, -- Data de início da supervisão
+    data_fim DATE, -- Data prevista para fim da supervisão
+    status ENUM('ativo', 'inativo') DEFAULT 'ativo',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (idusuario) REFERENCES usuarios(idusuario),
+    FOREIGN KEY (idsubgrupo) REFERENCES subgrupos(idsubgrupo),
+    
+    UNIQUE KEY unique_preceptor_subgrupo (idusuario, idsubgrupo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+SET SQL_MODE=@OLD_SQL_MODE;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
