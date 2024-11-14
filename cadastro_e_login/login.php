@@ -1,11 +1,6 @@
 <?php
 session_start();
 
-if (empty($_POST["login"]) || empty($_POST["senha"])) {
-    echo "<script>alert('Preencha todos os campos'); location.href='../index.php';</script>";
-    exit();
-}
-
 include('../cfg/config.php');
 
 $login = $_POST['login'];
@@ -33,7 +28,7 @@ if ($row && password_verify($senha, $row->senha)) {
         echo "<script>location.href='novocadastro.php';</script>";
     }
 } else {
-    echo "<script>alert('Login ou senha incorretos'); location.href='../index.php';</script>";
+    echo "<script>location.href='../index.php?alert=2';</script>";
 }
 
 $stmt->close();

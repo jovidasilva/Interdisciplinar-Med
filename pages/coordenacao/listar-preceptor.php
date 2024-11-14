@@ -49,11 +49,19 @@ include('../../cfg/config.php');
                                 <th>Email</th>
                                 <th>Status</th>
                                 <th>Telefone</th>
+                                <th>Unidade</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php
-                            $sql = "SELECT * FROM usuarios WHERE tipo = 1";
+                            $sql = "
+                                SELECT u.*, un.nome_unidade 
+                                FROM usuarios u
+                                LEFT JOIN preceptores_unidades pu ON u.idusuario = pu.idusuario
+                                LEFT JOIN unidades un ON pu.idunidade = un.idunidade
+                                WHERE u.tipo = 1
+                            ";
                             $res = $conn->query($sql);
 
                             if (!$res) {
@@ -70,10 +78,27 @@ include('../../cfg/config.php');
                                     echo "<td>" . htmlspecialchars($row->email) . "</td>";
                                     echo "<td>" . ativoTexto($row->ativo) . "</td>";
                                     echo "<td>" . htmlspecialchars($row->telefone) . "</td>";
+                                    echo "<td>" . htmlspecialchars($row->nome_unidade ?? 'Não Associado') . "</td>";
+                                    if (!empty($row->nome_unidade)) {
+                                        // Preceptor já associado, exibir botão de dissociar
+                                        echo "<td>
+                                            <a href='associar-preceptor.php?id=" . $row->idusuario . "' class='btn btn-primary btn-sm'>Associar Preceptor</a>
+                                            <form method='POST' action='associar-preceptor.php' style='display: inline;'>
+                                                <input type='hidden' name='idPreceptor' value='" . $row->idusuario . "'>
+                                                <input type='hidden' name='acao' value='dissociar'>
+                                                <button type='submit' class='btn btn-danger btn-sm' onclick=\"return confirm('Deseja realmente dissociar este preceptor da unidade e remover todos os módulos associados?');\">Dissociar</button>
+                                            </form>
+                                        </td>";
+                                    } else {
+                                        // Preceptor não associado, exibir apenas botão de associar
+                                        echo "<td>
+                                            <a href='associar-preceptor.php?id=" . $row->idusuario . "' class='btn btn-primary btn-sm'>Associar Preceptor</a>
+                                        </td>";
+                                    }
                                     echo "</tr>";
                                 }
                             } else {
-                                echo "<tr><td colspan='5'>Nenhum preceptor encontrado.</td></tr>"; // Corrigido para 5 colunas
+                                echo "<tr><td colspan='7'>Nenhum preceptor encontrado.</td></tr>";
                             }
                             ?>
                         </tbody>

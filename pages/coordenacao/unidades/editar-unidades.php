@@ -1,4 +1,4 @@
-<h1>Editar Unidade</h1>
+<h1>Editar Módulo</h1>
 <?php
 $sql = "SELECT * FROM unidades WHERE idunidade=" . intval($_REQUEST['idunidade']);
 $res = $conn->query($sql);
@@ -9,7 +9,7 @@ if (!$res) {
 
 $row = $res->fetch_object();
 if (!$row) {
-    die("Unidade não encontrada.");
+    die("Módulo não encontrado.");
 }
 ?>
 <form action="acoes-unidades.php" method="POST">

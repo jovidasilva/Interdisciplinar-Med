@@ -14,20 +14,9 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: white;
             overflow: hidden;
-        }
-
-        .box-green {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 65%;
-            height: 100%;
-            background-color: green;
-            transform: skewX(-30deg);
-            transform-origin: top left;
-            z-index: 1;
+            background: rgba(255, 255, 255, 0.3); 
+            backdrop-filter: blur(10px);
         }
 
         .card-login {

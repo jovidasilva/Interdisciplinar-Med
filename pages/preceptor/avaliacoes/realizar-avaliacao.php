@@ -12,7 +12,7 @@ if (!$idaluno) {
 $queryModulos = "
     SELECT m.idmodulo, m.nome_modulo 
     FROM modulos m
-    JOIN modulo_alunos ma ON m.idmodulo = ma.idmodulo
+    JOIN modulos_alunos ma ON m.idmodulo = ma.idmodulo
     WHERE ma.idusuario = ?";
 $stmtModulos = $conn->prepare($queryModulos);
 $stmtModulos->bind_param("i", $idaluno);
