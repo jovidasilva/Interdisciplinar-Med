@@ -9,7 +9,6 @@ include('../../cfg/config.php');
 
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,6 +40,7 @@ include('../../cfg/config.php');
             <div class="card">
                 <div class="card-body">
                     <h3>Lista de Preceptores</h3>
+                    <button class="btn btn-primary mb-3" onclick="location.href='associar-preceptor.php'">Gerenciar Preceptores</button>
                     <table class="table table-striped table-secondary table-bordered">
                         <thead>
                             <tr>
@@ -74,27 +74,21 @@ include('../../cfg/config.php');
                                 while ($row = $res->fetch_object()) {
                                     echo "<tr>";
                                     echo "<td>" . htmlspecialchars($row->nome) . "</td>";
-                                    echo "<td>" . htmlspecialchars($row->registro) . "</td>";
+                                    echo "<td>" . htmlspecialchars($row->registro) . "</td>"; // Aqui está correto, usando 'registro' em vez de 'crm'
                                     echo "<td>" . htmlspecialchars($row->email) . "</td>";
                                     echo "<td>" . ativoTexto($row->ativo) . "</td>";
                                     echo "<td>" . htmlspecialchars($row->telefone) . "</td>";
                                     echo "<td>" . htmlspecialchars($row->nome_unidade ?? 'Não Associado') . "</td>";
+                                    echo "<td>";
                                     if (!empty($row->nome_unidade)) {
                                         // Preceptor já associado, exibir botão de dissociar
-                                        echo "<td>
-                                            <a href='associar-preceptor.php?id=" . $row->idusuario . "' class='btn btn-primary btn-sm'>Associar Preceptor</a>
-                                            <form method='POST' action='associar-preceptor.php' style='display: inline;'>
+                                        echo "<form method='POST' action='associar-preceptor.php' style='display: inline;'>
                                                 <input type='hidden' name='idPreceptor' value='" . $row->idusuario . "'>
                                                 <input type='hidden' name='acao' value='dissociar'>
                                                 <button type='submit' class='btn btn-danger btn-sm' onclick=\"return confirm('Deseja realmente dissociar este preceptor da unidade e remover todos os módulos associados?');\">Dissociar</button>
-                                            </form>
-                                        </td>";
-                                    } else {
-                                        // Preceptor não associado, exibir apenas botão de associar
-                                        echo "<td>
-                                            <a href='associar-preceptor.php?id=" . $row->idusuario . "' class='btn btn-primary btn-sm'>Associar Preceptor</a>
-                                        </td>";
+                                            </form>";
                                     }
+                                    echo "</td>";
                                     echo "</tr>";
                                 }
                             } else {
@@ -115,5 +109,4 @@ include('../../cfg/config.php');
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
-
 </html>

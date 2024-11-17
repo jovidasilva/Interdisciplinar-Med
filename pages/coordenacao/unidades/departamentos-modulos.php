@@ -9,34 +9,46 @@ include('../../../cfg/config.php');
 $iddepartamento = isset($_GET['iddepartamento']) ? intval($_GET['iddepartamento']) : 0;
 $idunidade = isset($_GET['idunidade']) ? intval($_GET['idunidade']) : 0;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idmodulo']) && isset($_POST['acao'])) {
-    $idmodulo = intval($_POST['idmodulo']);
-    if ($_POST['acao'] === 'associar') {
-        $sql = "INSERT INTO modulos_departamentos (iddepartamento, idmodulo) VALUES ($iddepartamento, $idmodulo)";
-    } elseif ($_POST['acao'] === 'dessassociar') {
-        $sql = "DELETE FROM modulos_departamentos WHERE iddepartamento = $iddepartamento AND idmodulo = $idmodulo";
-    }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modulos']) && isset($_POST['acao'])) {
+    $modulos = $_POST['modulos'];
+    $conn->begin_transaction();
 
-    if ($conn->query($sql) === TRUE) {
+    try {
+        if ($_POST['acao'] === 'associar') {
+            $stmt = $conn->prepare("INSERT INTO modulos_departamentos (iddepartamento, idmodulo) VALUES (?, ?)");
+        } elseif ($_POST['acao'] === 'dessassociar') {
+            $stmt = $conn->prepare("DELETE FROM modulos_departamentos WHERE iddepartamento = ? AND idmodulo = ?");
+        }
+
+        foreach ($modulos as $idmodulo) {
+            $stmt->bind_param("ii", $iddepartamento, $idmodulo);
+            $stmt->execute();
+        }
+
+        $conn->commit();
         echo "<script>alert('Ação concluída com sucesso!');</script>";
-    } else {
-        echo "<script>alert('Erro ao realizar ação: " . $conn->error . "');</script>";
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo "<script>alert('Erro ao realizar ação: " . $e->getMessage() . "');</script>";
     }
 }
-
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
     <meta charset="UTF-8">
     <title>Gerenciar Módulos do Departamento</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../../css/style.css">
+    <script>
+        function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
+            const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
+            checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
+        }
+    </script>
 </head>
-
 <body>
     <header>
         <?php include('../../../includes/navbar.php'); ?>
@@ -47,94 +59,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idmodulo']) && isset(
             <h1>Gerenciar Módulos do Departamento</h1>
             <a href="departamento.php?idunidade=<?php echo $idunidade; ?>" class="btn btn-secondary">Voltar</a>
 
-            <h2 class="mt-5">Módulos Associados ao Departamento</h2>
-            <table class="table table-secondary table-bordered">
-                <thead>
-                    <tr>
-                        <th>Nome do Módulo</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $sql = "SELECT m.idmodulo, m.nome_modulo 
-                            FROM modulos m 
-                            JOIN modulos_departamentos md ON m.idmodulo = md.idmodulo
-                            WHERE md.iddepartamento = $iddepartamento";
-                    $res = $conn->query($sql);
+            <div class="row mt-5">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Módulos Associados ao Departamento</h5>
+                            <div class="form-check">
+                                <input type="checkbox" id="selectAllAssociados" class="form-check-input" onchange="toggleCheckboxes(this, 'modulo-associado')">
+                                <label for="selectAllAssociados" class="form-check-label">Selecionar Todos</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <input type="hidden" name="acao" value="dessassociar">
+                                <?php
+                                $sql = "SELECT m.idmodulo, m.nome_modulo 
+                                        FROM modulos m 
+                                        JOIN modulos_departamentos md ON m.idmodulo = md.idmodulo
+                                        WHERE md.iddepartamento = $iddepartamento";
+                                $res = $conn->query($sql);
 
-                    if ($res->num_rows > 0) {
-                        while ($row = $res->fetch_object()) {
-                            echo "<tr>";
-                            echo "<td>" . htmlspecialchars($row->nome_modulo) . "</td>";
-                            echo "<td>
-                                <form action='departamentos-modulos.php?iddepartamento=$iddepartamento&idunidade=$idunidade' method='POST' style='display:inline;'>
-                                    <input type='hidden' name='idmodulo' value='" . $row->idmodulo . "'>
-                                    <input type='hidden' name='acao' value='dessassociar'>
-                                    <button type='submit' class='btn btn-danger' onclick=\"return confirm('Tem certeza que deseja desassociar?')\">Desassociar</button>
-                                </form>
-                            </td>";
-                            echo "</tr>";
-                        }
-                    } else {
-                        echo "<tr><td colspan='2'>Nenhum módulo associado.</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
+                                if ($res->num_rows > 0) {
+                                    while ($row = $res->fetch_assoc()) {
+                                        echo "<div class='form-check'>
+                                                <input type='checkbox' name='modulos[]' value='" . $row['idmodulo'] . "' class='form-check-input modulo-associado'>
+                                                <label class='form-check-label'>" . htmlspecialchars($row['nome_modulo']) . "</label>
+                                              </div>";
+                                    }
+                                    echo "<button type='submit' class='btn btn-danger mt-3'>Desassociar Módulos</button>";
+                                } else {
+                                    echo "<p>Nenhum módulo associado.</p>";
+                                }
+                                ?>
+                            </form>
+                        </div>
+                    </div>
+                </div>
 
-            <h2 class="mt-5">Módulos Disponíveis na Unidade</h2>
-            <table class="table table-secondary table-bordered">
-                <thead>
-                    <tr>
-                        <th>Nome do Módulo</th>
-                        <th>Departamentos Associados</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $sql = "SELECT m.idmodulo, m.nome_modulo 
-                            FROM modulos m 
-                            JOIN unidades_modulos um ON m.idmodulo = um.idmodulo
-                            WHERE um.idunidade = $idunidade AND m.idmodulo NOT IN 
-                            (SELECT idmodulo FROM modulos_departamentos WHERE iddepartamento = $iddepartamento)";
-                    $res = $conn->query($sql);
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Módulos Disponíveis na Unidade</h5>
+                            <div class="form-check">
+                                <input type="checkbox" id="selectAllNaoAssociados" class="form-check-input" onchange="toggleCheckboxes(this, 'modulo-nao-associado')">
+                                <label for="selectAllNaoAssociados" class="form-check-label">Selecionar Todos</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <input type="hidden" name="acao" value="associar">
+                                <?php
+                                $sql = "SELECT m.idmodulo, m.nome_modulo 
+                                        FROM modulos m 
+                                        JOIN unidades_modulos um ON m.idmodulo = um.idmodulo
+                                        WHERE um.idunidade = $idunidade AND m.idmodulo NOT IN 
+                                        (SELECT idmodulo FROM modulos_departamentos WHERE iddepartamento = $iddepartamento)";
+                                $res = $conn->query($sql);
 
-                    if ($res->num_rows > 0) {
-                        while ($row = $res->fetch_object()) {
-                            echo "<tr>";
-                            echo "<td>" . htmlspecialchars($row->nome_modulo) . "</td>";
-
-                            // Listar departamentos associados
-                            $sql_dept = "SELECT d.nome_departamento 
-                                         FROM departamentos d 
-                                         JOIN modulos_departamentos md ON d.iddepartamento = md.iddepartamento
-                                         WHERE md.idmodulo = $row->idmodulo";
-                            $res_dept = $conn->query($sql_dept);
-                            $departamentos = [];
-                            while ($dept = $res_dept->fetch_object()) {
-                                $departamentos[] = htmlspecialchars($dept->nome_departamento);
-                            }
-                            echo "<td>" . implode(", ", $departamentos) . "</td>";
-
-                            echo "<td>
-                                <form action='departamentos-modulos.php?iddepartamento=$iddepartamento&idunidade=$idunidade' method='POST' style='display:inline;'>
-                                    <input type='hidden' name='idmodulo' value='" . $row->idmodulo . "'>
-                                    <input type='hidden' name='acao' value='associar'>
-                                    <button type='submit' class='btn btn-success'>Associar</button>
-                                </form>
-                            </td>";
-                            echo "</tr>";
-                        }
-                    } else {
-                        echo "<tr><td colspan='3'>Nenhum módulo disponível na unidade.</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
+                                if ($res->num_rows > 0) {
+                                    while ($row = $res->fetch_assoc()) {
+                                        echo "<div class='form-check'>
+                                                <input type='checkbox' name='modulos[]' value='" . $row['idmodulo'] . "' class='form-check-input modulo-nao-associado'>
+                                                <label class='form-check-label'>" . htmlspecialchars($row['nome_modulo']) . "</label>
+                                              </div>";
+                                    }
+                                    echo "<button type='submit' class='btn btn-primary mt-3'>Associar Módulos</button>";
+                                } else {
+                                    echo "<p>Nenhum módulo disponível.</p>";
+                                }
+                                ?>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 </body>
-
 </html>
