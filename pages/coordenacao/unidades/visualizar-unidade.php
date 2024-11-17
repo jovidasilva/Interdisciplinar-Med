@@ -91,7 +91,7 @@ if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {
                                     </label>
                                 </div>
                             <?php endwhile; ?>
-                            <button type="submit" class="btn btn-danger mt-3">Desassociar Módulos</button>
+                            <button type="submit" class="btn btn-danger mt-3">Desassociar Unidade</button>
                         <?php else: ?>
                             <p>Nenhum módulo associado.</p>
                         <?php endif; ?>
@@ -121,7 +121,7 @@ if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {
                                     </label>
                                 </div>
                             <?php endwhile; ?>
-                            <button type="submit" class="btn btn-primary mt-3">Associar Módulos</button>
+                            <button type="submit" class="btn btn-primary mt-3">Associar Unidade</button>
                         <?php else: ?>
                             <p>Nenhum módulo disponível.</p>
                         <?php endif; ?>

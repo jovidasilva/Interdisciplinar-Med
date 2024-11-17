@@ -16,7 +16,7 @@ if (!defined('BASE')) {
 }
 
 if (!defined('BASE_URL')) {
-    define('BASE_URL', '/Interdisciplinar/');
+    define('BASE_URL', '/Interdisciplinar-Med/');
 }
 
 $conn = new mysqli(HOST, USER, PASS, BASE);
