@@ -45,9 +45,6 @@ include('../../../cfg/config.php');
                             case 'upload-alunos':
                                 include('upload-alunos.php');
                                 break;
-                        case 'visualizar-preceptor':
-                            include('visualizar-preceptor.php');    
-                            break;
                         default:
                             include('listar-modulos.php');
                             break;

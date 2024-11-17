@@ -33,11 +33,19 @@ include('../../cfg/config.php');
                         <thead>
                             <tr>
                                 <th>Nome</th>
+                                <th>Nota</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php
-                            $sql = "SELECT * FROM usuarios WHERE tipo = 0";
+                            $sql = "SELECT u.nome, 
+                                           COALESCE((SELECT a.nota 
+                                                     FROM avaliacoes a 
+                                                     WHERE a.idaluno = u.idusuario 
+                                                     ORDER BY a.data_avaliacao DESC 
+                                                     LIMIT 1), 'Sem nota') AS nota
+                                    FROM usuarios u
+                                    WHERE u.tipo = 0";
 
                             $res = $conn->query($sql);
 
@@ -51,6 +59,7 @@ include('../../cfg/config.php');
                                 while ($row = $res->fetch_object()) {
                                     echo "<tr>";
                                     echo "<td>" . htmlspecialchars($row->nome) . "</td>";
+                                    echo "<td>" . htmlspecialchars($row->nota) . "</td>";
                                     echo "</tr>";
                                 }
                             } else {

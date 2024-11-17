@@ -1,71 +1,207 @@
 <?php
 
-include("../../../cfg/config.php");
+session_start();
+if (empty($_SESSION["login"])) {
+    echo "<script>location.href='../../../index.php';</script>";
+    exit();
+}
+require_once('../../../cfg/config.php');
 
-$subgroupId = $_REQUEST['idsubgrupo'];
+// Verifique se o ID do subgrupo está presente no POST ou GET
+$idsubgrupo = filter_input(INPUT_POST, 'idsubgrupo', FILTER_VALIDATE_INT) ?: filter_input(INPUT_GET, 'idsubgrupo', FILTER_VALIDATE_INT);
+$nomeSubgrupo = filter_input(INPUT_POST, 'nome_subgrupo', FILTER_CALLBACK, ['options' => 'trim']) ?: filter_input(INPUT_GET, 'nome_subgrupo', FILTER_CALLBACK, ['options' => 'trim']);
 
-$subgroupQuery = "SELECT nome_subgrupo FROM subgrupos WHERE idsubgrupo = ?";
-$stmt = $conn->prepare($subgroupQuery);
-$stmt->bind_param("i", $subgroupId);
-$stmt->execute();
-$subgroupResult = $stmt->get_result();
-$subgroupName = $subgroupResult->fetch_assoc()['nome_subgrupo'];
+if (!$idsubgrupo) {
+    die("ID de subgrupo inválido.");
+}
 
-$studentsQuery = "SELECT u.idusuario, u.nome, 
-                  (SELECT COUNT(*) FROM alunos_subgrupos AS asg WHERE asg.idusuario = u.idusuario AND asg.idsubgrupo = ?) AS associated 
-                  FROM usuarios AS u WHERE u.tipo = 0";
-$stmt = $conn->prepare($studentsQuery);
-$stmt->bind_param("i", $subgroupId);
-$stmt->execute();
-$studentsResult = $stmt->get_result();
+// Adicionar alunos ao subgrupo
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['alunos'])) {
+    $alunos = filter_input(INPUT_POST, 'alunos', FILTER_DEFAULT, FILTER_REQUIRE_ARRAY);
+    try {
+        $conn->begin_transaction();
 
-$associatedCount = 0;
-$students = [];
+        $stmt = $conn->prepare("INSERT INTO alunos_subgrupos (idusuario, idsubgrupo) VALUES (?, ?)");
+        foreach ($alunos as $idaluno) {
+            $stmt->bind_param("ii", $idaluno, $idsubgrupo);
+            $stmt->execute();
+        }
 
-while ($student = $studentsResult->fetch_assoc()) {
-    $students[] = $student;
-    if ($student['associated'] > 0) {
-        $associatedCount++;
+        $conn->commit();
+        $stmt->close();
+        header("Location: ver-alunos.php?idsubgrupo={$idsubgrupo}&nome_subgrupo=" . urlencode($nomeSubgrupo));
+        exit();
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Erro ao adicionar alunos: " . $e->getMessage());
+        die("Erro ao adicionar alunos.");
     }
+}
+
+// Remover aluno do subgrupo
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_aluno'])) {
+    $idaluno = filter_input(INPUT_POST, 'idaluno', FILTER_VALIDATE_INT);
+    try {
+        $stmt = $conn->prepare("DELETE FROM alunos_subgrupos WHERE idusuario = ? AND idsubgrupo = ?");
+        $stmt->bind_param("ii", $idaluno, $idsubgrupo);
+        $stmt->execute();
+        $stmt->close();
+        header("Location: ver-alunos.php?idsubgrupo={$idsubgrupo}&nome_subgrupo=" . urlencode($nomeSubgrupo));
+        exit();
+    } catch (Exception $e) {
+        error_log("Erro ao remover aluno: " . $e->getMessage());
+        die("Erro ao remover aluno.");
+    }
+}
+
+try {
+    $queryAlunos = "SELECT u.idusuario, u.nome
+                    FROM usuarios u 
+                    JOIN alunos_subgrupos asg ON u.idusuario = asg.idusuario 
+                    WHERE asg.idsubgrupo = ?";
+
+    $queryAlunosSemSubgrupo = "SELECT DISTINCT u.idusuario, u.nome
+                                FROM usuarios u 
+                                JOIN modulos_alunos ma ON u.idusuario = ma.idusuario 
+                                WHERE u.idusuario NOT IN (
+                                    SELECT idusuario 
+                                    FROM alunos_subgrupos 
+                                    WHERE idsubgrupo = ?
+                                )";
+
+    $stmtAlunos = $conn->prepare($queryAlunos);
+    $stmtAlunos->bind_param("i", $idsubgrupo);
+    $stmtAlunos->execute();
+    $resultAlunos = $stmtAlunos->get_result();
+
+    $stmtAlunosSemSubgrupo = $conn->prepare($queryAlunosSemSubgrupo);
+    $stmtAlunosSemSubgrupo->bind_param("i", $idsubgrupo);
+    $stmtAlunosSemSubgrupo->execute();
+    $resultAlunosSemSubgrupo = $stmtAlunosSemSubgrupo->get_result();
+
+} catch (Exception $e) {
+    error_log("Erro na consulta: " . $e->getMessage());
+    die("Erro ao buscar alunos.");
 }
 ?>
 
-<form action="?page=acoes-grupos" method="post">
-    <input type="hidden" name="idsubgrupo" value="<?php echo $subgroupId; ?>">
-    <h1>Subgrupo: <?php echo $subgroupName; ?><a href="grupos.php" class="btn btn-secondary float-end">Voltar</a></h1>
+<!DOCTYPE html>
+<html lang="pt-br">
 
-    <div class="row">
-        <div class="col-md-6">
-            <h2>Alunos Associados</h2>
-            <?php if ($associatedCount > 0): ?>
-                <?php foreach ($students as $student): ?>
-                    <?php if ($student['associated'] > 0): ?>
-                        <label>
-                            <input type="checkbox" name="associated_students[]" value="<?php echo $student['idusuario']; ?>">
-                            <?php echo $student['nome']; ?>
-                        </label><br>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-                <button class="btn btn-danger" type="submit" name="action" value="disassociate">Dessassociar</button>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alunos do Subgrupo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../../../css/style.css">
+    <script>
+        function confirmRemoval() {
+            return confirm('Tem certeza que deseja remover este aluno do subgrupo?');
+        }
+    </script>
+</head>
+
+<body>
+    <header>
+        <?php include('../../../includes/navbar.php'); ?>
+        <?php include('../../../includes/menu-lateral-coordenacao.php'); ?>
+    </header>
+    <main>
+        <div class="container mt-3">
+            <h2>Alunos do Subgrupo: <?= htmlspecialchars($nomeSubgrupo) ?></h2>
+
+            <?php if ($resultAlunos->num_rows > 0): ?>
+                <div class="card mb-3">
+                    <div class="card-header">Alunos no Subgrupo</div>
+                    <div class="card-body">
+                        <table class="table table-striped table-sm table-responsive">
+                            <thead>
+                                <tr>
+                                    <th class="col-2">ID</th>
+                                    <th class="col-7">Nome</th>
+                                    <th class="col-3">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($aluno = $resultAlunos->fetch_assoc()): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
+                                        <td><?= htmlspecialchars($aluno['nome']) ?></td>
+                                        <td>
+                                            <form method="post" style="display:inline;" onsubmit="return confirmRemoval();">
+                                                <input type="hidden" name="idsubgrupo" value="<?= htmlspecialchars($idsubgrupo) ?>">
+                                                <input type="hidden" name="idaluno" value="<?= htmlspecialchars($aluno['idusuario']) ?>">
+                                                <input type="hidden" name="nome_subgrupo" value="<?= htmlspecialchars($nomeSubgrupo) ?>">
+                                                <button type="submit" name="remove_aluno" class="btn btn-danger btn-sm">Remover</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             <?php else: ?>
-                <p>Não há alunos associados.</p>
+                <div class="alert alert-info">Nenhum aluno encontrado no subgrupo.</div>
             <?php endif; ?>
-        </div>
-        <div class="col-md-6">
-            <h2>Alunos Não Associados</h2>
-            <p>Atenção: No máximo 4 alunos podem ser associados.</p>
-            <?php $unassociatedStudents = array_filter($students, function($student) { return $student['associated'] == 0; }); ?>
-            <?php if (count($unassociatedStudents) > 0): ?>
-                <?php foreach ($unassociatedStudents as $student): ?>
-                    <label>
-                        <input type="checkbox" name="students[]" value="<?php echo $student['idusuario']; ?>">
-                        <?php echo $student['nome']; ?>
-                    </label><br>
-                <?php endforeach; ?>
-                <button class="btn btn-success" type="submit" name="action" value="associate">Associar</button>
-            <?php else: ?>
-                <p>Não há alunos cadastrados.</p>
+
+            <?php if ($resultAlunosSemSubgrupo->num_rows > 0): ?>
+                <div class="card">
+                    <div class="card-header">
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#alunosSemSubgrupoModal">
+                            Alunos sem Subgrupo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Alunos sem Subgrupo -->
+                <div class="modal fade" id="alunosSemSubgrupoModal" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Alunos sem Subgrupo</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form method="post">
+                                    <input type="hidden" name="idsubgrupo" value="<?= htmlspecialchars($idsubgrupo) ?>">
+                                    <input type="hidden" name="nome_subgrupo" value="<?= htmlspecialchars($nomeSubgrupo) ?>">
+                                    <table class="table table-striped table-sm table-responsive">
+                                        <thead>
+                                            <tr>
+                                                <th class="col-1">Select</th>
+                                                <th class="col-3">ID</th>
+                                                <th class="col-8">Nome</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php while ($aluno = $resultAlunosSemSubgrupo->fetch_assoc()): ?>
+                                                <tr>
+                                                    <td><input type="checkbox" name="alunos[]" value="<?= htmlspecialchars($aluno['idusuario']) ?>"></td>
+                                                    <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
+                                                    <td><?= htmlspecialchars($aluno['nome']) ?></td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                    <button type="submit" class="btn btn-primary">Adicionar ao Subgrupo</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             <?php endif; ?>
+            
+            <button onclick="location.href='grupos.php'" class="btn btn-secondary mt-3">Voltar</button>
         </div>
-    </div>
-</form>
+    </main>
+    <footer>
+        <div class="card footer-home rounded-0">
+            <div class="card-body"></div>
+        </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

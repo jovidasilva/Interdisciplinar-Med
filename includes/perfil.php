@@ -29,6 +29,12 @@ if (empty($_SESSION["login"])) {
         <div class="container mt-3">
             <div class="card">
                 <div class="card-body">
+                    <?php if (isset($_SESSION['msg'])): ?>
+                        <div class="alert alert-info">
+                            <?php echo $_SESSION['msg']; unset($_SESSION['msg']); ?>
+                        </div>
+                    <?php endif; ?>
+
                     <?php
                         switch (@$_REQUEST['page']) {
                             case 'editar':
