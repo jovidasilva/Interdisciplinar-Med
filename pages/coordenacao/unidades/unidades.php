@@ -45,6 +45,12 @@ include('../../../cfg/config.php');
                         case 'dessassociar-modulos':
                             include('dessassociar-modulos.php');
                             break;
+                        case 'visualizar-preceptor':
+                            include('visualizar-preceptor.php');
+                            break;
+                        case 'acoes-preceptor':
+                            include('acoes-preceptor.php');
+                            break;
                         default:
                             include('listar-unidades.php');
                             break;

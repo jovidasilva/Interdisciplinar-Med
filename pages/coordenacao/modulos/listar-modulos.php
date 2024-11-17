@@ -41,7 +41,8 @@
                             echo "<td>" . htmlspecialchars($row->periodo) . "</td>";
                             echo "<td>" . htmlspecialchars($totalAlunos) . "</td>"; 
                             echo "<td>
-                             <button onclick=\"location.href='?page=visualizar-modulos&idmodulo=" . $row->idmodulo . "';\" class='btn btn-primary'>Visualizar</button>
+                            <button onclick=\"location.href='?page=visualizar-preceptor&idmodulo=" . $row->idmodulo . "';\" class='btn btn-info'>Visualizar preceptores</button>
+                             <button onclick=\"location.href='?page=visualizar-modulos&idmodulo=" . $row->idmodulo . "';\" class='btn btn-primary'>Visualizar alunos</button>
                              <button onclick=\"location.href='?page=editar-modulos&idmodulo=" . $row->idmodulo . "';\" class='btn btn-success'>Editar</button>
                              <button onclick=\"if(confirm('Tem certeza que deseja excluir?')) location.href='acoes-modulos.php?acao=excluir&idmodulo=" . $row->idmodulo . "';\" class='btn btn-danger'>Excluir</button>
                              </td>";

@@ -29,7 +29,8 @@
                             echo "<td>" . htmlspecialchars($row->nome_unidade) . "</td>";
                             echo "<td>" . htmlspecialchars($row->endereco_unidade) . "</td>";
                             echo "<td>
-                             <button onclick=\"location.href='?page=visualizar-unidade&idunidade=" . $row->idunidade . "';\" class='btn btn-primary'>Visualizar</button>
+                             <button onclick=\"location.href='?page=visualizar-preceptor&idunidade=" . $row->idunidade . "';\" class='btn btn-info'>Visualizar preceptores</button>
+                             <button onclick=\"location.href='?page=visualizar-unidade&idunidade=" . $row->idunidade . "';\" class='btn btn-primary'>Visualizar modulos</button>
                              <button onclick=\"location.href='?page=editar-unidades&idunidade=" . $row->idunidade . "';\" class='btn btn-success'>Editar</button>
                              <button onclick=\"if(confirm('Tem certeza que deseja excluir?')) location.href='acoes-unidades.php?acao=excluir&idunidade=" . $row->idunidade . "';\" class='btn btn-danger'>Excluir</button>
                              </td>";

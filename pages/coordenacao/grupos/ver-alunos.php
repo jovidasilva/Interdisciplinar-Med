@@ -1,113 +1,71 @@
-```php
 <?php
 
-require_once('../../../cfg/config.php');
+include("../../../cfg/config.php");
 
-$idsubgrupo = filter_input(INPUT_POST, 'idsubgrupo', FILTER_VALIDATE_INT);
-$nomeSubgrupo = filter_input(INPUT_POST, 'nome_subgrupo', FILTER_SANITIZE_STRING);
+$subgroupId = $_REQUEST['idsubgrupo'];
 
-if (!$idsubgrupo) {
-    die("ID de subgrupo inválido.");
-}
+$subgroupQuery = "SELECT nome_subgrupo FROM subgrupos WHERE idsubgrupo = ?";
+$stmt = $conn->prepare($subgroupQuery);
+$stmt->bind_param("i", $subgroupId);
+$stmt->execute();
+$subgroupResult = $stmt->get_result();
+$subgroupName = $subgroupResult->fetch_assoc()['nome_subgrupo'];
 
-try {
-    // Preparar consultas com prepared statements
-    $queryAlunos = "SELECT u.idusuario, u.nome
-                    FROM usuarios u 
-                    JOIN alunos_subgrupos asg ON u.idusuario = asg.idusuario 
-                    WHERE asg.idsubgrupo = ?";
+$studentsQuery = "SELECT u.idusuario, u.nome, 
+                  (SELECT COUNT(*) FROM alunos_subgrupos AS asg WHERE asg.idusuario = u.idusuario AND asg.idsubgrupo = ?) AS associated 
+                  FROM usuarios AS u WHERE u.tipo = 0";
+$stmt = $conn->prepare($studentsQuery);
+$stmt->bind_param("i", $subgroupId);
+$stmt->execute();
+$studentsResult = $stmt->get_result();
 
-    $queryAlunosSemSubgrupo = "SELECT u.idusuario, u.nome
-                                FROM usuarios u 
-                                JOIN modulos_alunos ma ON u.idusuario = ma.idusuario 
-                                WHERE u.idusuario NOT IN (
-                                    SELECT idusuario 
-                                    FROM alunos_subgrupos 
-                                    WHERE idsubgrupo = ?
-                                )";
+$associatedCount = 0;
+$students = [];
 
-    // Executar consultas
-    $stmtAlunos = $conn->prepare($queryAlunos);
-    $stmtAlunos->bind_param("i", $idsubgrupo);
-    $stmtAlunos->execute();
-    $resultAlunos = $stmtAlunos->get_result();
-
-    $stmtAlunosSemSubgrupo = $conn->prepare($queryAlunosSemSubgrupo);
-    $stmtAlunosSemSubgrupo->bind_param("i", $idsubgrupo);
-    $stmtAlunosSemSubgrupo->execute();
-    $resultAlunosSemSubgrupo = $stmtAlunosSemSubgrupo->get_result();
-
-} catch (Exception $e) {
-    error_log("Erro na consulta: " . $e->getMessage());
-    die("Erro ao buscar alunos.");
+while ($student = $studentsResult->fetch_assoc()) {
+    $students[] = $student;
+    if ($student['associated'] > 0) {
+        $associatedCount++;
+    }
 }
 ?>
 
-<h2>Alunos do Subgrupo: <?= htmlspecialchars($nomeSubgrupo) ?></h2>
+<form action="?page=acoes-grupos" method="post">
+    <input type="hidden" name="idsubgrupo" value="<?php echo $subgroupId; ?>">
+    <h1>Subgrupo: <?php echo $subgroupName; ?><a href="grupos.php" class="btn btn-secondary float-end">Voltar</a></h1>
 
-<?php if ($resultAlunos->num_rows > 0): ?>
-    <div class="card mb-3">
-        <div class="card-header">Alunos no Subgrupo</div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nome</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php while ($aluno = $resultAlunos->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
-                            <td><?= htmlspecialchars($aluno['nome']) ?></td>
-                        </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table>
+    <div class="row">
+        <div class="col-md-6">
+            <h2>Alunos Associados</h2>
+            <?php if ($associatedCount > 0): ?>
+                <?php foreach ($students as $student): ?>
+                    <?php if ($student['associated'] > 0): ?>
+                        <label>
+                            <input type="checkbox" name="associated_students[]" value="<?php echo $student['idusuario']; ?>">
+                            <?php echo $student['nome']; ?>
+                        </label><br>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+                <button class="btn btn-danger" type="submit" name="action" value="disassociate">Dessassociar</button>
+            <?php else: ?>
+                <p>Não há alunos associados.</p>
+            <?php endif; ?>
+        </div>
+        <div class="col-md-6">
+            <h2>Alunos Não Associados</h2>
+            <p>Atenção: No máximo 4 alunos podem ser associados.</p>
+            <?php $unassociatedStudents = array_filter($students, function($student) { return $student['associated'] == 0; }); ?>
+            <?php if (count($unassociatedStudents) > 0): ?>
+                <?php foreach ($unassociatedStudents as $student): ?>
+                    <label>
+                        <input type="checkbox" name="students[]" value="<?php echo $student['idusuario']; ?>">
+                        <?php echo $student['nome']; ?>
+                    </label><br>
+                <?php endforeach; ?>
+                <button class="btn btn-success" type="submit" name="action" value="associate">Associar</button>
+            <?php else: ?>
+                <p>Não há alunos cadastrados.</p>
+            <?php endif; ?>
         </div>
     </div>
-<?php else: ?>
-    <div class="alert alert-info">Nenhum aluno encontrado no subgrupo.</div>
-<?php endif; ?>
-
-<?php if ($resultAlunosSemSubgrupo->num_rows > 0): ?>
-    <div class="card">
-        <div class="card-header">
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#alunosSemSubgrupoModal">
-                Alunos sem Subgrupo
-            </button>
-        </div>
-    </div>
-
-    <!-- Modal Alunos sem Subgrupo -->
-    <div class="modal fade" id="alunosSemSubgrupoModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Alunos sem Subgrupo</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nome</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while ($aluno = $resultAlunosSemSubgrupo->fetch_assoc()): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
-                                    <td><?= htmlspecialchars($aluno['nome']) ?></td>
-                                </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>
-```
+</form>
