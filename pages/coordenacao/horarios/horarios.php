@@ -32,13 +32,11 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../../css/style.css">
     <style>
-
         /* Adiciona uma margem superior ao formulário de filtros */
-form.row.mb-4 {
-    margin-top: 30px; /* Ajuste o valor conforme necessário */
-}
-
-        </style>
+        form.row.mb-4 {
+            margin-top: 30px; /* Ajuste o valor conforme necessário */
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -171,34 +169,33 @@ form.row.mb-4 {
                     <tbody>';
             
             while ($row = mysqli_fetch_assoc($result)) {
-                echo "<tr>
-                        <td>{$row['nome_unidade']}</td>
-                        <td>{$row['nome_departamento']}</td>
-                        <td>{$row['nome_modulo']}</td>
-                        <td>{$row['preceptor_nome']}</td>
-                        <td>{$row['dia_semana']}</td>
-                        <td>{$row['hora_inicio']}</td>
-                        <td>{$row['hora_fim']}</td>
-                        <td>{$row['nome_subgrupo']}</td>
+                echo '<tr>
+                        <td>' . $row['nome_unidade'] . '</td>
+                        <td>' . $row['nome_departamento'] . '</td>
+                        <td>' . $row['nome_modulo'] . '</td>
+                        <td>' . $row['preceptor_nome'] . '</td>
+                        <td>' . $row['dia_semana'] . '</td>
+                        <td>' . $row['hora_inicio'] . '</td>
+                        <td>' . $row['hora_fim'] . '</td>
+                        <td>' . $row['nome_subgrupo'] . '</td>
                         <td>
-                            <a href='preencher-horario.php?id={$row['idhorario']}' class='btn btn-primary btn-sm'>Editar</a>
-                            <a href='excluir-horario.php?id={$row['idhorario']}' class='btn btn-danger btn-sm' onclick='return confirm(\"Tem certeza que deseja excluir este horário?\")'>Excluir</a>
+                            <a href="preencher-horario.php?id=' . $row['idhorario'] . '" class="btn btn-primary btn-sm">Editar</a>
+                            <a href="excluir-horario.php?id=' . $row['idhorario'] . '" class="btn btn-danger btn-sm" onclick="return confirm(\'Tem certeza que deseja excluir este horário?\')">Excluir</a>
                         </td>
-                      </tr>";
+                      </tr>';
             }
             
             echo '</tbody></table>';
         } else {
             echo '<div class="d-flex flex-column align-items-center mt-4">
-            <p class="text-center mb-3">Não há horários correspondentes aos critérios de filtro.</p>
-          </div>';
+                    <p class="text-center mb-3">Não há horários correspondentes aos critérios de filtro.</p>
+                  </div>';
         }
         ?>
-       <div class="d-flex flex-column align-items-center mt-4">
-    <p class="text-center mb-3" id="no-results-message" style="display: none;">Não há horários correspondentes aos critérios de filtro.</p>
-    <a href="preencher-horario.php" class="btn btn-success">Adicionar Novo Horário</a>
-</div>
-
+        <div class="d-flex flex-column align-items-center mt-4">
+            <p class="text-center mb-3" id="no-results-message" style="display: none;">Não há horários correspondentes aos critérios de filtro.</p>
+            <a href="preencher-horario.php" class="btn btn-success">Adicionar Novo Horário</a>
+        </div>
     </main>
     <footer>
         <div class="card footer-home rounded-0">
