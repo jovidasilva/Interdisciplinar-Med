@@ -33,6 +33,15 @@ include('../../cfg/config.php');
         </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <div class="container mt-3">
+            <div class="card">
+                <div class="card-body">
+    
+    <div class="container mt-3">
+    <h1>Rodízio Ativo</h1>
+    <p>Nenhum rodízio encontrado.</p>
+</div>
+
 </body>
 
 </html>
