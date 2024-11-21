@@ -36,7 +36,7 @@ switch ($user['tipo']) {
         $homeUrl = BASE_URL . '/pages/coordenacao/home.php';
         break;
     default:
-        $homeUrl = BASE_URL . '/pages/home.php'; // fallback in case of an unknown type
+        $homeUrl = BASE_URL . '/cadastro_e_login/novocadastro.php'; // retorno de tipo -1
         break;
 }
 ?>

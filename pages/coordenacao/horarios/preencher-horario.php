@@ -179,22 +179,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $(document).ready(function() {
             $('#idUnidade').change(function() {
                 var idUnidade = $(this).val();
-                console.log('Unidade selecionada: ' + idUnidade); // Log para depuração
                 if (idUnidade) {
                     $.ajax({
                         url: 'preencher-horario.php',
                         type: 'GET',
                         data: { action: 'getDepartamentos', idunidade: idUnidade },
                         success: function(data) {
-                            console.log('Resposta AJAX - Departamentos recebidos: ', data); // Log para depuração
                             var departamentos = JSON.parse(data);
-                            console.log('Departamentos após parse JSON: ', departamentos); // Log para depuração
-
                             // Limpar o campo de seleção de departamentos antes de adicionar novos
-                            $('#idDepartamento').html('<option value="">Selecione o Departamento</option>');
-
+                            $('#idDepartamento').html('<option value="">Selecione o Departamento</option>')
                             $.each(departamentos, function(index, departamento) {
-                                console.log('Adicionando departamento: ', departamento); // Log para depuração
                                 $('#idDepartamento').append('<option value="'+departamento.iddepartamento+'">'+departamento.nome_departamento+'</option>');
                             });
                         }
@@ -204,22 +198,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $('#idDepartamento').change(function() {
                 var idDepartamento = $(this).val();
-                console.log('Departamento selecionado: ' + idDepartamento); // Log para depuração
                 if (idDepartamento) {
                     $.ajax({
                         url: 'preencher-horario.php',
                         type: 'GET',
                         data: { action: 'getModulos', iddepartamento: idDepartamento },
                         success: function(data) {
-                            console.log('Resposta AJAX - Módulos recebidos: ', data); // Log para depuração
                             var modulos = JSON.parse(data);
-                            console.log('Módulos após parse JSON: ', modulos); // Log para depuração
-
                             // Limpar o campo de seleção de módulos antes de adicionar novos
                             $('#idModulo').html('<option value="">Selecione o Módulo</option>');
 
                             $.each(modulos, function(index, modulo) {
-                                console.log('Adicionando módulo: ', modulo); // Log para depuração
                                 $('#idModulo').append('<option value="'+modulo.idmodulo+'">'+modulo.nome_modulo+'</option>');
                             });
                         }
@@ -229,22 +218,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $('#idModulo').change(function() {
                 var idModulo = $(this).val();
-                console.log('Módulo selecionado: ' + idModulo); // Log para depuração
                 if (idModulo) {
                     $.ajax({
                         url: 'preencher-horario.php',
                         type: 'GET',
                         data: { action: 'getSubgrupos', idmodulo: idModulo },
                         success: function(data) {
-                            console.log('Resposta AJAX - Subgrupos recebidos: ', data); // Log para depuração
                             var subgrupos = JSON.parse(data);
-                            console.log('Subgrupos após parse JSON: ', subgrupos); // Log para depuração
-
                             // Limpar o campo de seleção de subgrupos antes de adicionar novos
                             $('#subgrupo').html('<option value="">Selecione o Subgrupo</option>');
 
                             $.each(subgrupos, function(index, subgrupo) {
-                                console.log('Adicionando subgrupo: ', subgrupo); // Log para depuração
                                 $('#subgrupo').append('<option value="'+subgrupo.idsubgrupo+'">'+subgrupo.nome_subgrupo+'</option>');
                             });
                         }
@@ -256,15 +240,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         type: 'GET',
                         data: { action: 'getPreceptores', idunidade: idUnidade, idmodulo: idModulo },
                         success: function(data) {
-                            console.log('Resposta AJAX - Preceptores recebidos: ', data); // Log para depuração
                             var preceptores = JSON.parse(data);
-                            console.log('Preceptores após parse JSON: ', preceptores); // Log para depuração
-
                             // Limpar o campo de seleção de preceptores antes de adicionar novos
                             $('#idPreceptor').html('<option value="">Selecione o Preceptor</option>');
 
                             $.each(preceptores, function(index, preceptor) {
-                                console.log('Adicionando preceptor: ', preceptor); // Log para depuração
                                 $('#idPreceptor').append('<option value="'+preceptor.idusuario+'">'+preceptor.nome+'</option>');
                             });
                         }
