@@ -40,17 +40,29 @@ switch ($_REQUEST['acao']) {
         echo "<script>location.href='modulos.php';</script>";
         break;
 
-    case 'excluir':
-        if (isset($_REQUEST['idmodulo'])) {
-            $idmodulo = intval($_REQUEST['idmodulo']);
-            $sql = "DELETE FROM modulos WHERE idmodulo = $idmodulo";
-            if ($conn->query($sql) === TRUE) {
-                echo "<script>alert('Módulo excluído com sucesso!');</script>";
-            } else {
-                echo "<script>alert('Não foi possível excluir o módulo.');</script>";
+        case 'excluir':
+            if (isset($_REQUEST['idmodulo'])) {
+                $idmodulo = intval($_REQUEST['idmodulo']);
+    
+                // delete de unidades_modulos
+                $sql = "DELETE FROM unidades_modulos WHERE idmodulo = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("i", $idmodulo);
+                $stmt->execute();
+                $stmt->close();
+    
+                // delete de modulo
+                $sql = "DELETE FROM modulos WHERE idmodulo = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("i", $idmodulo);
+                if ($stmt->execute()) {
+                    echo "<script>alert('Módulo excluído com sucesso!');</script>";
+                } else {
+                    echo "<script>alert('Não foi possível excluir o módulo.');</script>";
+                }
+                $stmt->close();
+    
+                echo "<script>location.href='modulos.php';</script>";
             }
-            echo "<script>location.href='modulos.php';</script>";
-        } else {
-        }
-        break;
+            break;
 }
