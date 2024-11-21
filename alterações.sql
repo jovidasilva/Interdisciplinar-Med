@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`alunos_subgrupos` (
     FOREIGN KEY (`idsubgrupo`)
     REFERENCES `proj_internato`.`subgrupos` (`idsubgrupo`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 37
+AUTO_INCREMENT = 44
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`departamentos` (
     FOREIGN KEY (`idunidade`)
     REFERENCES `proj_internato`.`unidades` (`idunidade`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 5
+AUTO_INCREMENT = 7
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`horarios` (
     FOREIGN KEY (`idunidade`)
     REFERENCES `proj_internato`.`unidades` (`idunidade`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 8
+AUTO_INCREMENT = 50
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -342,7 +342,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`preceptores_modulos` (
     FOREIGN KEY (`idmodulo`)
     REFERENCES `proj_internato`.`modulos` (`idmodulo`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 27
+AUTO_INCREMENT = 146
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -365,7 +365,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`preceptores_unidades` (
     FOREIGN KEY (`idunidade`)
     REFERENCES `proj_internato`.`unidades` (`idunidade`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 17
+AUTO_INCREMENT = 43
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -427,7 +427,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`unidades_modulos` (
     FOREIGN KEY (`idunidade`)
     REFERENCES `proj_internato`.`unidades` (`idunidade`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 32
+AUTO_INCREMENT = 51
 DEFAULT CHARACTER SET = utf8mb3;
 
 
