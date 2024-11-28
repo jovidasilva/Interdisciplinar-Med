@@ -1,0 +1,22 @@
+--view
+
+SELECT * FROM vw_modulos_alunos;
+
+ ou
+
+SELECT aluno_nome, nome_modulo, periodo
+FROM vw_modulos_alunos
+WHERE nome_departamento = 'Departamento X'
+ORDER BY aluno_nome;
+
+
+
+--Procedure
+
+CALL associar_aluno_subgrupo(id do aluno, id do subgrupo);
+
+
+--Function
+
+SELECT obter_modulos_preceptor(id do preceptor);
+
