@@ -10,7 +10,6 @@ WHERE nome_departamento = 'Departamento X'
 ORDER BY aluno_nome;
 
 
-
 --Procedure
 
 CALL associar_aluno_subgrupo(id do aluno, id do subgrupo);

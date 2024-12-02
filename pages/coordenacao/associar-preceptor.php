@@ -35,17 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    if ($acao === 'dissociar' && !empty($idPreceptor)) {
-        // Desassociar o preceptor de todos os módulos
-        $stmt = $conn->prepare("DELETE FROM preceptores_modulos WHERE idusuario = ?");
-        $stmt->bind_param("i", $idPreceptor);
-        $stmt->execute();
-        echo "<script>alert('Preceptor desassociado com sucesso!'); location.href='associar-preceptor.php';</script>";
-        exit();
-    }
 }
 
-// Lógica para buscar módulos do preceptor via AJAX
+// Lógica para buscar módulos do preceptor
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['idPreceptor'])) {
     $idPreceptor = $_GET['idPreceptor'];
     $sqlModulos = "

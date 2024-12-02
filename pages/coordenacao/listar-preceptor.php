@@ -50,7 +50,6 @@ include('../../cfg/config.php');
                                 <th>Status</th>
                                 <th>Telefone</th>
                                 <th>Unidade</th>
-                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -74,25 +73,15 @@ include('../../cfg/config.php');
                                 while ($row = $res->fetch_object()) {
                                     echo "<tr>";
                                     echo "<td>" . htmlspecialchars($row->nome) . "</td>";
-                                    echo "<td>" . htmlspecialchars($row->registro) . "</td>"; // Aqui está correto, usando 'registro' em vez de 'crm'
+                                    echo "<td>" . htmlspecialchars($row->registro) . "</td>";
                                     echo "<td>" . htmlspecialchars($row->email) . "</td>";
                                     echo "<td>" . ativoTexto($row->ativo) . "</td>";
                                     echo "<td>" . htmlspecialchars($row->telefone) . "</td>";
                                     echo "<td>" . htmlspecialchars($row->nome_unidade ?? 'Não Associado') . "</td>";
-                                    echo "<td>";
-                                    if (!empty($row->nome_unidade)) {
-                                        // Preceptor já associado, exibir botão de dissociar
-                                        echo "<form method='POST' action='associar-preceptor.php' style='display: inline;'>
-                                                <input type='hidden' name='idPreceptor' value='" . $row->idusuario . "'>
-                                                <input type='hidden' name='acao' value='dissociar'>
-                                                <button type='submit' class='btn btn-danger btn-sm' onclick=\"return confirm('Deseja realmente dissociar este preceptor da unidade e remover todos os módulos associados?');\">Dissociar</button>
-                                            </form>";
-                                    }
-                                    echo "</td>";
                                     echo "</tr>";
                                 }
-                            } else {
-                                echo "<tr><td colspan='7'>Nenhum preceptor encontrado.</td></tr>";
+                             } else {
+                                echo "<tr><td colspan='6'>Nenhum preceptor encontrado.</td></tr>";
                             }
                             ?>
                         </tbody>
