@@ -75,28 +75,26 @@ if (isset($_GET['idmodulo'])) {
                 <div class="card">
                     <div class="card-header">
                         <h5>Alunos Matriculados no Módulo</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                <input type="checkbox" id="selectAllAssociados" class="form-check-input" onchange="toggleCheckboxes(this, 'aluno-associado')">
+                                <label for="selectAllAssociados" class="form-check-label">Selecionar Todos</label>
+                            </div>
+                            <?php if ($numAlunosAssociados > 0): ?>
+                                <button type="submit" class="btn btn-danger">Desassociar Aluno(s)</button>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="card-body">
                         <?php if ($numAlunosAssociados > 0): ?>
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" id="selectAll" onclick="toggleCheckboxes(this, 'aluno-associado')"> Selecionar Todos</th>
-                                        <th>Nome</th>
-                                        <th>RA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php while ($aluno = $alunosAssociados->fetch_assoc()): ?>
-                                        <tr>
-                                            <td><input type="checkbox" class="aluno-associado" name="alunosDesassociar[]" value="<?php echo htmlspecialchars($aluno['idusuario']); ?>"></td>
-                                            <td><?php echo htmlspecialchars($aluno['nome']); ?></td>
-                                            <td><?php echo htmlspecialchars($aluno['registro']); ?></td>
-                                        </tr>
-                                    <?php endwhile; ?>
-                                </tbody>
-                            </table>
-                            <button type="submit" class="btn btn-primary mt-3">Desassociar Aluno(s)</button>
+                            <?php while ($aluno = $alunosAssociados->fetch_assoc()): ?>
+                                <div class="form-check">
+                                    <input type="checkbox" name="alunosDesassociar[]" value="<?php echo $aluno['idusuario']; ?>" class="form-check-input aluno-associado" id="aluno-associado-<?php echo $aluno['idusuario']; ?>">
+                                    <label class="form-check-label" for="aluno-associado-<?php echo $aluno['idusuario']; ?>">
+                                        <?php echo htmlspecialchars($aluno['nome']); ?> - RA: <?php echo htmlspecialchars($aluno['registro']); ?>
+                                    </label>
+                                </div>
+                            <?php endwhile; ?>
                         <?php else: ?>
                             <p>Nenhum aluno encontrado.</p>
                         <?php endif; ?>
@@ -105,15 +103,20 @@ if (isset($_GET['idmodulo'])) {
             </form>
 
             <div class="card">
-                <div class="card-header">
-                    <h5>Alunos Não Matriculados e Disponíveis</h5>
-                    <div class="form-check">
-                        <input type="checkbox" id="selectAllNaoAssociados" class="form-check-input" onchange="toggleCheckboxes(this, 'aluno-nao-associado')">
-                        <label for="selectAllNaoAssociados" class="form-check-label">Selecionar Todos</label>
+                <form method="POST" action="associar-alunos.php?idmodulo=<?php echo $idmodulo; ?>">
+                    <div class="card-header">
+                        <h5>Alunos Não Matriculados e Disponíveis</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                <input type="checkbox" id="selectAllNaoAssociados" class="form-check-input" onchange="toggleCheckboxes(this, 'aluno-nao-associado')">
+                                <label for="selectAllNaoAssociados" class="form-check-label">Selecionar Todos</label>
+                            </div>
+                            <?php if ($numAlunosNaoAssociados > 0): ?>
+                                <button type="submit" class="btn btn-primary">Associar Aluno(s)</button>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="associar-alunos.php?idmodulo=<?php echo $idmodulo; ?>">
+                    <div class="card-body">
                         <?php if ($numAlunosNaoAssociados > 0): ?>
                             <?php while ($aluno = $alunosNaoAssociados->fetch_assoc()): ?>
                                 <div class="form-check">
@@ -123,12 +126,11 @@ if (isset($_GET['idmodulo'])) {
                                     </label>
                                 </div>
                             <?php endwhile; ?>
-                            <button type="submit" class="btn btn-primary mt-3">Associar Alunos</button>
                         <?php else: ?>
                             <p>Nenhum aluno disponível.</p>
                         <?php endif; ?>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

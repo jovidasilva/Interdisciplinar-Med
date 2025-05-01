@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`usuarios` (
   `periodo` INT NULL DEFAULT NULL,
   PRIMARY KEY (`idusuario`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 217
+AUTO_INCREMENT = 430
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`grupos` (
   `nome_grupo` VARCHAR(5) NOT NULL,
   PRIMARY KEY (`idgrupo`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 4
+AUTO_INCREMENT = 7
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`subgrupos` (
     REFERENCES `proj_internato`.`grupos` (`idgrupo`)
     ON DELETE CASCADE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 10
+AUTO_INCREMENT = 19
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -84,37 +84,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`alunos_subgrupos` (
     FOREIGN KEY (`idsubgrupo`)
     REFERENCES `proj_internato`.`subgrupos` (`idsubgrupo`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 37
-DEFAULT CHARACTER SET = utf8mb3;
-
-
--- -----------------------------------------------------
--- Table `proj_internato`.`unidades`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `proj_internato`.`unidades` (
-  `idunidade` INT NOT NULL AUTO_INCREMENT,
-  `nome_unidade` VARCHAR(90) NOT NULL,
-  `endereco_unidade` VARCHAR(90) NULL DEFAULT NULL,
-  PRIMARY KEY (`idunidade`))
-ENGINE = InnoDB
-AUTO_INCREMENT = 3
-DEFAULT CHARACTER SET = utf8mb3;
-
-
--- -----------------------------------------------------
--- Table `proj_internato`.`departamentos`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `proj_internato`.`departamentos` (
-  `iddepartamento` INT NOT NULL AUTO_INCREMENT,
-  `nome_departamento` VARCHAR(100) NULL DEFAULT NULL,
-  `idunidade` INT NOT NULL,
-  PRIMARY KEY (`iddepartamento`, `idunidade`),
-  INDEX `fk_departamentos_unidades1_idx` (`idunidade` ASC) VISIBLE,
-  CONSTRAINT `fk_departamentos_unidades1`
-    FOREIGN KEY (`idunidade`)
-    REFERENCES `proj_internato`.`unidades` (`idunidade`))
-ENGINE = InnoDB
-AUTO_INCREMENT = 5
+AUTO_INCREMENT = 73
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -125,15 +95,9 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`modulos` (
   `idmodulo` INT NOT NULL AUTO_INCREMENT,
   `nome_modulo` VARCHAR(90) NOT NULL,
   `periodo` INT NOT NULL,
-  `iddepartamento` INT NULL DEFAULT NULL,
-  PRIMARY KEY (`idmodulo`),
-  INDEX `fk_modulos_departamentos` (`iddepartamento` ASC) VISIBLE,
-  CONSTRAINT `fk_modulos_departamentos`
-    FOREIGN KEY (`iddepartamento`)
-    REFERENCES `proj_internato`.`departamentos` (`iddepartamento`)
-    ON DELETE SET NULL)
+  PRIMARY KEY (`idmodulo`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 13
+AUTO_INCREMENT = 25
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -148,9 +112,9 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`avaliacoes` (
   `idpreceptor` INT NOT NULL,
   `idmodulo` INT NOT NULL,
   PRIMARY KEY (`idavaliacao`),
-  INDEX `fk_aluno_idx` (`idaluno` ASC) VISIBLE,
-  INDEX `fk_preceptor_idx` (`idpreceptor` ASC) VISIBLE,
-  INDEX `fk_modulo_idx` (`idmodulo` ASC) VISIBLE,
+  INDEX `idaluno` (`idaluno` ASC) VISIBLE,
+  INDEX `idpreceptor` (`idpreceptor` ASC) VISIBLE,
+  INDEX `idmodulo` (`idmodulo` ASC) VISIBLE,
   CONSTRAINT `fk_avaliacao_aluno`
     FOREIGN KEY (`idaluno`)
     REFERENCES `proj_internato`.`usuarios` (`idusuario`)
@@ -191,8 +155,8 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`avaliacoes_respostas` (
   `idpergunta` INT NOT NULL,
   `resposta` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`idresposta`),
-  INDEX `fk_resposta_avaliacao` (`idavaliacao` ASC) VISIBLE,
-  INDEX `fk_resposta_pergunta` (`idpergunta` ASC) VISIBLE,
+  INDEX `idavaliacao` (`idavaliacao` ASC) VISIBLE,
+  INDEX `idpergunta` (`idpergunta` ASC) VISIBLE,
   CONSTRAINT `fk_resposta_avaliacao`
     FOREIGN KEY (`idavaliacao`)
     REFERENCES `proj_internato`.`avaliacoes` (`idavaliacao`)
@@ -206,13 +170,25 @@ DEFAULT CHARACTER SET = utf8mb3;
 
 
 -- -----------------------------------------------------
+-- Table `proj_internato`.`unidades`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `proj_internato`.`unidades` (
+  `idunidade` INT NOT NULL AUTO_INCREMENT,
+  `nome_unidade` VARCHAR(90) NOT NULL,
+  `endereco_unidade` VARCHAR(90) NULL DEFAULT NULL,
+  PRIMARY KEY (`idunidade`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 5
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
 -- Table `proj_internato`.`horarios`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `proj_internato`.`horarios` (
   `idhorario` INT NOT NULL AUTO_INCREMENT,
   `idunidade` INT NOT NULL,
   `idmodulo` INT NOT NULL,
-  `iddepartamento` INT NULL DEFAULT NULL,
   `idpreceptor` INT NOT NULL,
   `dia_semana` ENUM('Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo') NOT NULL,
   `hora_inicio` TIME NOT NULL,
@@ -220,20 +196,14 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`horarios` (
   `local` VARCHAR(90) NULL DEFAULT NULL,
   `idsubgrupo` INT NOT NULL,
   PRIMARY KEY (`idhorario`),
-  INDEX `fk_horarios_unidade_idx` (`idunidade` ASC) VISIBLE,
-  INDEX `fk_horarios_modulo_idx` (`idmodulo` ASC) VISIBLE,
-  INDEX `fk_horarios_preceptor_idx` (`idpreceptor` ASC) VISIBLE,
-  INDEX `fk_horario_subgrupo` (`idsubgrupo` ASC) VISIBLE,
-  INDEX `fk_horarios_departamento` (`iddepartamento` ASC) VISIBLE,
+  INDEX `idunidade` (`idunidade` ASC) VISIBLE,
+  INDEX `idmodulo` (`idmodulo` ASC) VISIBLE,
+  INDEX `idpreceptor` (`idpreceptor` ASC) VISIBLE,
+  INDEX `idsubgrupo` (`idsubgrupo` ASC) VISIBLE,
   CONSTRAINT `fk_horario_subgrupo`
     FOREIGN KEY (`idsubgrupo`)
     REFERENCES `proj_internato`.`subgrupos` (`idsubgrupo`)
     ON DELETE CASCADE,
-  CONSTRAINT `fk_horarios_departamento`
-    FOREIGN KEY (`iddepartamento`)
-    REFERENCES `proj_internato`.`departamentos` (`iddepartamento`)
-    ON DELETE SET NULL
-    ON UPDATE CASCADE,
   CONSTRAINT `fk_horarios_modulo`
     FOREIGN KEY (`idmodulo`)
     REFERENCES `proj_internato`.`modulos` (`idmodulo`),
@@ -245,36 +215,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`horarios` (
     FOREIGN KEY (`idunidade`)
     REFERENCES `proj_internato`.`unidades` (`idunidade`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 5
-DEFAULT CHARACTER SET = utf8mb3;
-
-
--- -----------------------------------------------------
--- Table `proj_internato`.`horarios_supervisao`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `proj_internato`.`horarios_supervisao` (
-  `idhorario` INT NOT NULL AUTO_INCREMENT,
-  `idpreceptor` INT NOT NULL,
-  `idmodulo` INT NULL DEFAULT NULL,
-  `idunidade` INT NULL DEFAULT NULL,
-  `dia_semana` ENUM('Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo') NOT NULL,
-  `hora_inicio` TIME NOT NULL,
-  `hora_fim` TIME NOT NULL,
-  `turno` VARCHAR(10) NULL DEFAULT NULL,
-  PRIMARY KEY (`idhorario`),
-  INDEX `idpreceptor` (`idpreceptor` ASC) VISIBLE,
-  INDEX `idmodulo` (`idmodulo` ASC) VISIBLE,
-  INDEX `idunidade` (`idunidade` ASC) VISIBLE,
-  CONSTRAINT `horarios_supervisao_ibfk_1`
-    FOREIGN KEY (`idpreceptor`)
-    REFERENCES `proj_internato`.`usuarios` (`idusuario`),
-  CONSTRAINT `horarios_supervisao_ibfk_2`
-    FOREIGN KEY (`idmodulo`)
-    REFERENCES `proj_internato`.`modulos` (`idmodulo`),
-  CONSTRAINT `horarios_supervisao_ibfk_3`
-    FOREIGN KEY (`idunidade`)
-    REFERENCES `proj_internato`.`unidades` (`idunidade`))
-ENGINE = InnoDB
+AUTO_INCREMENT = 8
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -286,8 +227,8 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`modulos_alunos` (
   `idmodulo` INT NOT NULL,
   `idusuario` INT NOT NULL,
   PRIMARY KEY (`id`),
-  INDEX `fk_modulo_idx` (`idmodulo` ASC) VISIBLE,
-  INDEX `fk_usuario_idx` (`idusuario` ASC) VISIBLE,
+  INDEX `idmodulo` (`idmodulo` ASC) VISIBLE,
+  INDEX `idusuario` (`idusuario` ASC) VISIBLE,
   CONSTRAINT `fk_modulo_alunos_modulo`
     FOREIGN KEY (`idmodulo`)
     REFERENCES `proj_internato`.`modulos` (`idmodulo`)
@@ -297,28 +238,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`modulos_alunos` (
     REFERENCES `proj_internato`.`usuarios` (`idusuario`)
     ON DELETE CASCADE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 236
-DEFAULT CHARACTER SET = utf8mb3;
-
-
--- -----------------------------------------------------
--- Table `proj_internato`.`modulos_departamentos`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `proj_internato`.`modulos_departamentos` (
-  `iddepartamento` INT NOT NULL,
-  `idmodulo` INT NOT NULL,
-  PRIMARY KEY (`iddepartamento`, `idmodulo`),
-  INDEX `fk_departamento_idx` (`iddepartamento` ASC) VISIBLE,
-  INDEX `fk_modulo_idx` (`idmodulo` ASC) VISIBLE,
-  CONSTRAINT `fk_departamento`
-    FOREIGN KEY (`iddepartamento`)
-    REFERENCES `proj_internato`.`departamentos` (`iddepartamento`)
-    ON DELETE CASCADE,
-  CONSTRAINT `fk_modulo`
-    FOREIGN KEY (`idmodulo`)
-    REFERENCES `proj_internato`.`modulos` (`idmodulo`)
-    ON DELETE CASCADE)
-ENGINE = InnoDB
+AUTO_INCREMENT = 438
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -341,7 +261,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`preceptores_modulos` (
     FOREIGN KEY (`idmodulo`)
     REFERENCES `proj_internato`.`modulos` (`idmodulo`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 34
+AUTO_INCREMENT = 47
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -364,7 +284,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`preceptores_unidades` (
     FOREIGN KEY (`idunidade`)
     REFERENCES `proj_internato`.`unidades` (`idunidade`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 8
+AUTO_INCREMENT = 10
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -379,7 +299,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`rodizios` (
   `idmodulo` INT NOT NULL,
   `grupos` CHAR(1) NULL DEFAULT NULL,
   PRIMARY KEY (`idrodizio`),
-  INDEX `fk_rodizio_modulo_idx` (`idmodulo` ASC) VISIBLE,
+  INDEX `idmodulo` (`idmodulo` ASC) VISIBLE,
   CONSTRAINT `fk_rodizio_modulo`
     FOREIGN KEY (`idmodulo`)
     REFERENCES `proj_internato`.`modulos` (`idmodulo`))
@@ -426,7 +346,7 @@ CREATE TABLE IF NOT EXISTS `proj_internato`.`unidades_modulos` (
     FOREIGN KEY (`idunidade`)
     REFERENCES `proj_internato`.`unidades` (`idunidade`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 21
+AUTO_INCREMENT = 12
 DEFAULT CHARACTER SET = utf8mb3;
 
 

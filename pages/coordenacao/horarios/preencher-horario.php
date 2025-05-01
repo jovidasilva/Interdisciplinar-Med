@@ -16,14 +16,9 @@ if (isset($_GET['action'])) {
     $action = $_GET['action'];
 
     switch ($action) {
-        case 'getDepartamentos':
-            $idUnidade = $_GET['idunidade'];
-            echo getDepartamentos($conn, $idUnidade);
-            break;
-
         case 'getModulos':
-            $idDepartamento = $_GET['iddepartamento'];
-            echo getModulos($conn, $idDepartamento);
+            $idUnidade = $_GET['idunidade'];
+            echo getModulos($conn, $idUnidade);
             break;
 
         case 'getSubgrupos':
@@ -59,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../../css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
 </head>
 <body>
     <header>
@@ -86,28 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="mb-3">
-                <label for="idDepartamento" class="form-label">Departamento</label>
-                <select name="idDepartamento" id="idDepartamento" class="form-select" required>
-                    <option value="">Selecione o Departamento</option>
-                    <?php
-                    if (isset($horarioData['idunidade'])) {
-                        $departamentos = getDepartamentosByUnidade($conn, $horarioData['idunidade']);
-                        foreach ($departamentos as $departamento) {
-                            $selected = ($horarioData['iddepartamento'] ?? '') == $departamento['iddepartamento'] ? 'selected' : '';
-                            echo "<option value='" . $departamento['iddepartamento'] . "' $selected>" . $departamento['nome_departamento'] . "</option>";
-                        }
-                    }
-                    ?>
-                </select>
-            </div>
-
-            <div class="mb-3">
                 <label for="idModulo" class="form-label">Módulo</label>
                 <select name="idModulo" id="idModulo" class="form-select" required>
                     <option value="">Selecione o Módulo</option>
                     <?php
-                    if (isset($horarioData['iddepartamento'])) {
-                        $modulos = getModulosByDepartamento($conn, $horarioData['iddepartamento']);
+                    if (isset($horarioData['idunidade'])) {
+                        $modulos = getModulosByUnidade($conn, $horarioData['idunidade']);
                         foreach ($modulos as $modulo) {
                             $selected = ($horarioData['idmodulo'] ?? '') == $modulo['idmodulo'] ? 'selected' : '';
                             echo "<option value='" . $modulo['idmodulo'] . "' $selected>" . $modulo['nome_modulo'] . "</option>";
@@ -151,12 +132,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="mb-3">
                 <label for="horaInicio" class="form-label">Hora de Início</label>
-                <input type="time" name="horaInicio" id="horaInicio" class="form-control" required value="<?php echo htmlspecialchars($horarioData['hora_inicio'] ?? ''); ?>">
+                <input type="text" name="horaInicio" id="horaInicio" class="form-control" required value="<?php echo htmlspecialchars($horarioData['hora_inicio'] ?? ''); ?>">
             </div>
 
             <div class="mb-3">
                 <label for="horaFim" class="form-label">Hora de Fim</label>
-                <input type="time" name="horaFim" id="horaFim" class="form-control" required value="<?php echo htmlspecialchars($horarioData['hora_fim'] ?? ''); ?>">
+                <input type="text" name="horaFim" id="horaFim" class="form-control" required value="<?php echo htmlspecialchars($horarioData['hora_fim'] ?? ''); ?>">
             </div>
 
             <div class="mb-3">
@@ -167,6 +148,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="Quarta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Quarta') ? 'selected' : ''; ?>>Quarta-feira</option>
                     <option value="Quinta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Quinta') ? 'selected' : ''; ?>>Quinta-feira</option>
                     <option value="Sexta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Sexta') ? 'selected' : ''; ?>>Sexta-feira</option>
+                    <option value="Sexta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Sábado') ? 'selected' : ''; ?>>Sábado</option>
+                    <option value="Sexta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Domingo') ? 'selected' : ''; ?>>Domingo</option>
                 </select>
             </div>
 
@@ -183,26 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $.ajax({
                         url: 'preencher-horario.php',
                         type: 'GET',
-                        data: { action: 'getDepartamentos', idunidade: idUnidade },
-                        success: function(data) {
-                            var departamentos = JSON.parse(data);
-                            // Limpar o campo de seleção de departamentos antes de adicionar novos
-                            $('#idDepartamento').html('<option value="">Selecione o Departamento</option>')
-                            $.each(departamentos, function(index, departamento) {
-                                $('#idDepartamento').append('<option value="'+departamento.iddepartamento+'">'+departamento.nome_departamento+'</option>');
-                            });
-                        }
-                    });
-                }
-            });
-
-            $('#idDepartamento').change(function() {
-                var idDepartamento = $(this).val();
-                if (idDepartamento) {
-                    $.ajax({
-                        url: 'preencher-horario.php',
-                        type: 'GET',
-                        data: { action: 'getModulos', iddepartamento: idDepartamento },
+                        data: { action: 'getModulos', idunidade: idUnidade },
                         success: function(data) {
                             var modulos = JSON.parse(data);
                             // Limpar o campo de seleção de módulos antes de adicionar novos
@@ -257,17 +221,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Disparar os eventos 'change' para preencher os campos relacionados
                 $('#idUnidade').trigger('change');
                 setTimeout(function() {
-                    $('#idDepartamento').val('<?php echo $horarioData['iddepartamento']; ?>').trigger('change');
+                    $('#idModulo').val('<?php echo $horarioData['idmodulo']; ?>').trigger('change');
                     setTimeout(function() {
-                        $('#idModulo').val('<?php echo $horarioData['idmodulo']; ?>').trigger('change');
-                        setTimeout(function() {
-                            $('#subgrupo').val('<?php echo $horarioData['idsubgrupo']; ?>');
-                            $('#idPreceptor').val('<?php echo $horarioData['idpreceptor']; ?>');
-                        }, 500);
+                        $('#subgrupo').val('<?php echo $horarioData['idsubgrupo']; ?>');
+                        $('#idPreceptor').val('<?php echo $horarioData['idpreceptor']; ?>');
                     }, 500);
                 }, 500);
             <?php } ?>
         });
     </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+  flatpickr("#horaInicio", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true
+  });
+
+  flatpickr("#horaFim", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true
+  });
+</script>
+
 </body>
 </html>

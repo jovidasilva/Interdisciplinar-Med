@@ -17,7 +17,7 @@ $filterPreceptor = $_GET['preceptor'] ?? '';
 // Carregar opções para os selects do banco de dados
 $unidades = $conn->query("SELECT DISTINCT idunidade, nome_unidade FROM unidades");
 $subgrupos = $conn->query("SELECT DISTINCT idsubgrupo, nome_subgrupo FROM subgrupos");
-$modulos = $conn->query("SELECT DISTINCT idmodulo, nome_modulo FROM modulos");
+$modulos = $conn->query("SELECT DISTINCT m.idmodulo, m.nome_modulo FROM modulos m JOIN unidades_modulos um ON m.idmodulo = um.idmodulo");
 $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE tipo = 1");
 
 ?>
@@ -32,9 +32,106 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../../css/style.css">
     <style>
-        /* Adiciona uma margem superior ao formulário de filtros */
-        form.row.mb-4 {
-            margin-top: 30px; /* Ajuste o valor conforme necessário */
+     
+        main.container {
+            padding: 15px 0;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* Estilos para o formulário de filtro */
+        .filter-form {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .filter-form label {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .filter-form select {
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+        }
+        
+      
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Estilos para a tabela */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .table thead th {
+            background-color: #157347;
+            color: white;
+            font-weight: 500;
+            text-align: center;
+            padding: 12px;
+            white-space: nowrap;
+        }
+        
+        .table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .table tbody tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .table td {
+            padding: 10px;
+            vertical-align: middle;
+        }
+        
+        /* Estilos para os botões de ação */
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+        
+        .btn-add {
+            background-color: #198754;
+            border-color: #198754;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .btn-add:hover {
+            background-color: #157347;
+            border-color: #146c43;
+        }
+        
+        
+        @media (max-width: 768px) {
+            .filter-form .col-md-2 {
+                margin-bottom: 15px;
+            }
+            
+            .filter-buttons {
+                justify-content: space-between;
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -44,10 +141,14 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
         <?php include('../../../includes/menu-lateral-coordenacao.php'); ?>
     </header>
     <main class="container mt-4">
-        <h2>Horários</h2>
+        <h2><i class="bi bi-calendar3"></i> Gerenciamento de Horários</h2>
         
         <!-- Formulário de Filtro -->
-        <form method="GET" class="row mb-4">
+        <form method="GET" class="row mb-4 filter-form">
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <h5><i class="bi bi-funnel"></i> Filtros</h5>
+                </div>
             <div class="col-md-2">
                 <label for="dia" class="form-label">Dia da Semana</label>
                 <select name="dia" id="dia" class="form-select">
@@ -106,7 +207,11 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
                 </select>
             </div>
             <div class="col-md-2 align-self-end">
-                <button type="submit" class="btn btn-primary">Filtrar</button>
+                <div class="filter-buttons">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filtrar</button>
+                    <a href="horarios.php" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Limpar</a>
+                </div>
+            </div>
             </div>
         </form>
 
@@ -114,7 +219,6 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
         // Construindo a consulta com os filtros
         $query = "SELECT h.idhorario, 
                          u.nome_unidade, 
-                         d.nome_departamento, 
                          m.nome_modulo, 
                          p.nome AS preceptor_nome, 
                          h.dia_semana, 
@@ -124,7 +228,6 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
                   FROM horarios h
                   JOIN unidades u ON h.idunidade = u.idunidade
                   JOIN modulos m ON h.idmodulo = m.idmodulo
-                  JOIN departamentos d ON h.iddepartamento = d.iddepartamento
                   JOIN usuarios p ON h.idpreceptor = p.idusuario
                   JOIN subgrupos sg ON h.idsubgrupo = sg.idsubgrupo
                   WHERE 1=1";
@@ -152,18 +255,18 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
         $result = mysqli_query($conn, $query);
         
         if (mysqli_num_rows($result) > 0) {
-            echo '<table class="table table-bordered">
+            echo '<div class="table-container">
+                <table class="table table-bordered table-hover">
                     <thead>
                         <tr>
-                            <th>Unidade</th>
-                            <th>Departamento</th>
-                            <th>Módulo</th>
-                            <th>Preceptor</th>
-                            <th>Dia da Semana</th>
-                            <th>Hora de Início</th>
-                            <th>Hora de Fim</th>
-                            <th>Subgrupo</th>
-                            <th>Ações</th>
+                            <th><i class="bi bi-building"></i> Unidade</th>
+                            <th><i class="bi bi-journal-text"></i> Módulo</th>
+                            <th><i class="bi bi-person"></i> Preceptor</th>
+                            <th><i class="bi bi-calendar-day"></i> Dia</th>
+                            <th><i class="bi bi-clock"></i> Hora Inicial</th>
+                            <th><i class="bi bi-clock-history"></i> Hora Final</th>
+                            <th><i class="bi bi-people"></i> Subgrupo</th>
+                            <th><i class="bi bi-gear"></i> Ações</th>
                         </tr>
                     </thead>
                     <tbody>';
@@ -171,7 +274,6 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
             while ($row = mysqli_fetch_assoc($result)) {
                 echo '<tr>
                         <td>' . $row['nome_unidade'] . '</td>
-                        <td>' . $row['nome_departamento'] . '</td>
                         <td>' . $row['nome_modulo'] . '</td>
                         <td>' . $row['preceptor_nome'] . '</td>
                         <td>' . $row['dia_semana'] . '</td>
@@ -179,22 +281,24 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
                         <td>' . $row['hora_fim'] . '</td>
                         <td>' . $row['nome_subgrupo'] . '</td>
                         <td>
-                            <a href="preencher-horario.php?id=' . $row['idhorario'] . '" class="btn btn-primary btn-sm">Editar</a>
-                            <a href="excluir-horario.php?id=' . $row['idhorario'] . '" class="btn btn-danger btn-sm" onclick="return confirm(\'Tem certeza que deseja excluir este horário?\')">Excluir</a>
+                            <div class="action-buttons">
+                                <a href="preencher-horario.php?id=' . $row['idhorario'] . '" class="btn btn-primary btn-sm" title="Editar"><i class="bi bi-pencil"></i></a>
+                                <a href="excluir-horario.php?id=' . $row['idhorario'] . '" class="btn btn-danger btn-sm" title="Excluir" onclick="return confirm(\'Tem certeza que deseja excluir este horário?\');"><i class="bi bi-trash"></i></a>
+                            </div>
                         </td>
                       </tr>';
             }
             
-            echo '</tbody></table>';
+            echo '</tbody></table>
+                </div>';
         } else {
-            echo '<div class="d-flex flex-column align-items-center mt-4">
-                    <p class="text-center mb-3">Não há horários correspondentes aos critérios de filtro.</p>
+            echo '<div class="alert alert-info text-center" role="alert">
+                    <i class="bi bi-info-circle me-2"></i> Não há horários correspondentes aos critérios de filtro.
                   </div>';
         }
         ?>
-        <div class="d-flex flex-column align-items-center mt-4">
-            <p class="text-center mb-3" id="no-results-message" style="display: none;">Não há horários correspondentes aos critérios de filtro.</p>
-            <a href="preencher-horario.php" class="btn btn-success">Adicionar Novo Horário</a>
+        <div class="d-flex justify-content-center mt-4">
+            <a href="preencher-horario.php" class="btn btn-add"><i class="bi bi-plus-circle me-2"></i>Adicionar Novo Horário</a>
         </div>
     </main>
     <footer>

@@ -1,3 +1,6 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <div class="container mt-3">
     <div class="body">
         <div class="card-body">
@@ -17,29 +20,36 @@
 
             <form id="rodizioForm" method="POST" action="processar-rodizios.php">
                 <input type="hidden" name="periodo" value="" id="hiddenPeriodo">
+                <div class="form mt-3">
 
-                <div class="form mt-3">
-                    <label>Rodizio 1</label>
-                    <input type="date" id="inicio1" name="inicio1">
-                    <input type="date" id="fim1" name="fim1">
-                    <input type="hidden" id="modulo1" name="modulo1">
-                </div>
-                <div class="form mt-3">
-                    <label>Rodizio 2</label>
-                    <input type="date" id="inicio2" name="inicio2">
-                    <input type="date" id="fim2" name="fim2">
-                    <input type="hidden" id="modulo2" name="modulo2">
-                </div>
-                <div class="form mt-3">
-                    <label>Rodizio 3</label>
-                    <input type="date" id="inicio3" name="inicio3">
-                    <input type="date" id="fim3" name="fim3">
-                    <input type="hidden" id="modulo3" name="modulo3">
-                </div>
-                <div class="form mt-3">
-                    <input type="checkbox" name="no_fill_groups" id="no_fill_groups">
-                    <label for="no_fill_groups">Não preencher grupos</label>
-                </div>
+    <label class="form-label">Rodízio 1</label>
+    <div class="row gx-2">
+        <div class="col"><input type="date" class="form-control" id="inicio1" name="inicio1"></div>
+        <div class="col"><input type="date" class="form-control" id="fim1" name="fim1"></div>
+    </div>
+    <input type="hidden" id="modulo1" name="modulo1">
+</div>
+<div class="form mt-3">
+    <label class="form-label">Rodízio 2</label>
+    <div class="row gx-2">
+        <div class="col"><input type="date" class="form-control" id="inicio2" name="inicio2"></div>
+        <div class="col"><input type="date" class="form-control" id="fim2" name="fim2"></div>
+    </div>
+    <input type="hidden" id="modulo2" name="modulo2">
+</div>
+<div class="form mt-3">
+    <label class="form-label">Rodízio 3</label>
+    <div class="row gx-2">
+        <div class="col"><input type="date" class="form-control" id="inicio3" name="inicio3"></div>
+        <div class="col"><input type="date" class="form-control" id="fim3" name="fim3"></div>
+    </div>
+    <input type="hidden" id="modulo3" name="modulo3">
+</div>
+
+                <div class="form-check mt-3">
+    <input class="form-check-input" type="checkbox" name="no_fill_groups" id="no_fill_groups">
+    <label class="form-check-label" for="no_fill_groups">Não preencher grupos</label>
+</div>
 
                 <button type="button" class="btn btn-secondary mt-3" onclick="gerarRodizios()">Gerar rodizio</button>
 

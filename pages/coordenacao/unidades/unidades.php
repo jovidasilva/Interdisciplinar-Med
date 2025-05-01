@@ -43,10 +43,7 @@ include('../../../cfg/config.php');
                             include('associar-modulos.php');
                             break;
                         case 'dessassociar-modulos':
-                            include('dessassociar-modulos.php');
-                            break;
-                            case 'departamentos.php':
-                                include('departamentos.php');
+                            include('dessassociar-moduls.php');
                                 break;
                         default:
                             include('listar-unidades.php');

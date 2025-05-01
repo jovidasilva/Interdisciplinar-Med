@@ -55,19 +55,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_aluno'])) {
 }
 
 try {
-    $queryAlunos = "SELECT u.idusuario, u.nome
+    $queryAlunos = "SELECT u.idusuario, u.nome, u.registro
                     FROM usuarios u 
                     JOIN alunos_subgrupos asg ON u.idusuario = asg.idusuario 
-                    WHERE asg.idsubgrupo = ?";
+                    WHERE asg.idsubgrupo = ?
+                    ORDER BY u.nome ASC";
 
-    $queryAlunosSemSubgrupo = "SELECT DISTINCT u.idusuario, u.nome
+    $queryAlunosSemSubgrupo = "SELECT DISTINCT u.idusuario, u.nome, u.registro
                                 FROM usuarios u 
                                 JOIN modulos_alunos ma ON u.idusuario = ma.idusuario 
                                 WHERE u.idusuario NOT IN (
                                     SELECT idusuario 
                                     FROM alunos_subgrupos 
                                     WHERE idsubgrupo = ?
-                                )";
+                                )
+                                ORDER BY u.nome ASC";
 
     $stmtAlunos = $conn->prepare($queryAlunos);
     $stmtAlunos->bind_param("i", $idsubgrupo);
@@ -118,7 +120,7 @@ try {
                         <table class="table table-striped table-sm table-responsive">
                             <thead>
                                 <tr>
-                                    <th class="col-2">ID</th>
+                                    <th class="col-2">RA</th>
                                     <th class="col-7">Nome</th>
                                     <th class="col-3">Ação</th>
                                 </tr>
@@ -126,7 +128,7 @@ try {
                             <tbody>
                                 <?php while ($aluno = $resultAlunos->fetch_assoc()): ?>
                                     <tr>
-                                        <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
+                                        <td><?= htmlspecialchars($aluno['registro']) ?></td>
                                         <td><?= htmlspecialchars($aluno['nome']) ?></td>
                                         <td>
                                             <form method="post" style="display:inline;" onsubmit="return confirmRemoval();">
@@ -171,17 +173,25 @@ try {
                                         <thead>
                                             <tr>
                                                 <th class="col-1">Select</th>
-                                                <th class="col-3">ID</th>
+                                                <th class="col-3">RA</th>
                                                 <th class="col-8">Nome</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php while ($aluno = $resultAlunosSemSubgrupo->fetch_assoc()): ?>
-                                                <tr>
-                                                    <td><input type="checkbox" name="alunos[]" value="<?= htmlspecialchars($aluno['idusuario']) ?>"></td>
-                                                    <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
-                                                    <td><?= htmlspecialchars($aluno['nome']) ?></td>
-                                                </tr>
+                                            <tr>
+                                                <td>
+                                                  <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="alunos[]" value="<?= htmlspecialchars($aluno['idusuario']) ?>" id="aluno<?= $aluno['idusuario'] ?>">
+                                                  </div>
+                                                </td>
+                                                    <td><?= htmlspecialchars($aluno['registro']) ?></td>
+                                                        <td>
+                                                            <label class="form-check-label" for="aluno<?= $aluno['idusuario'] ?>">
+                                                                <?= htmlspecialchars($aluno['nome']) ?>
+                                                            </label>
+                                                        </td>
+                                             </tr>
                                             <?php endwhile; ?>
                                         </tbody>
                                     </table>

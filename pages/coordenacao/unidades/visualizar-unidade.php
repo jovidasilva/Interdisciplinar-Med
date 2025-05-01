@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     console.log('Resposta do servidor:', response);
                     if (response.success) {
                         alert(response.message);
-                        location.reload(); // Recarregar a página para refletir as mudanças
+                        location.reload();
                     } else {
                         alert(response.message || 'Ocorreu um erro ao processar sua solicitação.');
                         if (response.redirect) {
@@ -252,6 +252,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <!-- Gerenciar Preceptores -->
         <div class="container-card">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Preceptores Associados</h5>
+                    <div class="form-check">
+                        <input type="checkbox" id="selectAllAssociadosPreceptores" class="form-check-input" onchange="toggleCheckboxes(this, 'preceptor-associado')">
+                        <label for="selectAllAssociadosPreceptores" class="form-check-label">Selecionar Todos</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" onsubmit="submitForm(event, this)">
+                        <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
+                        <input type="hidden" name="acao" value="desassociar">
+                        <?php mysqli_data_seek($resPreceptores, 0); // Reset result set pointer ?>
+                        <?php if ($resPreceptores->num_rows > 0): ?>
+                            <?php while ($preceptor = $resPreceptores->fetch_assoc()): ?>
+                                <?php if (!is_null($preceptor['idunidade']) && $preceptor['idunidade'] == $idunidade): ?>
+                                    <div class="form-check">
+                                        <input type="checkbox" name="preceptores[]" value="<?php echo $preceptor['idusuario']; ?>" class="form-check-input preceptor-associado">
+                                        <label class="form-check-label"><?php echo htmlspecialchars($preceptor['nome']); ?> - <?php echo htmlspecialchars($preceptor['nome_unidade']); ?></label>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endwhile; ?>
+                            <button type="submit" class="btn btn-danger mt-3">Desassociar Preceptores</button>
+                        <?php else: ?>
+                            <p>Nenhum preceptor associado.</p>
+                        <?php endif; ?>
+                    </form>
+                </div>
+            </div>
+
             <!-- Preceptores Não Associados -->
             <div class="card">
                 <div class="card-header">
@@ -286,37 +316,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php else: ?>
                             <p>Não há nenhum preceptor desassociado no momento.</p>
                         <?php endif; ?>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Preceptores Associados -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Preceptores Associados</h5>
-                        <div class="form-check">
-                            <input type="checkbox" id="selectAllAssociadosPreceptores" class="form-check-input" onchange="toggleCheckboxes(this, 'preceptor-associado')">
-                            <label for="selectAllAssociadosPreceptores" class="form-check-label">Selecionar Todos</label>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" onsubmit="submitForm(event, this)">
-                            <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
-                            <input type="hidden" name="acao" value="desassociar">
-                            <?php mysqli_data_seek($resPreceptores, 0); // Reset result set pointer ?>
-                            <?php if ($resPreceptores->num_rows > 0): ?>
-                                <?php while ($preceptor = $resPreceptores->fetch_assoc()): ?>
-                                    <?php if (!is_null($preceptor['idunidade']) && $preceptor['idunidade'] == $idunidade): ?>
-                                        <div class="form-check">
-                                            <input type="checkbox" name="preceptores[]" value="<?php echo $preceptor['idusuario']; ?>" class="form-check-input preceptor-associado">
-                                            <label class="form-check-label"><?php echo htmlspecialchars($preceptor['nome']); ?> - <?php echo htmlspecialchars($preceptor['nome_unidade']); ?></label>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php endwhile; ?>
-                                <button type="submit" class="btn btn-danger mt-3">Desassociar Preceptores</button>
-                            <?php else: ?>
-                                <p>Nenhum preceptor associado.</p>
-                            <?php endif; ?>
                         </form>
                     </div>
                 </div>

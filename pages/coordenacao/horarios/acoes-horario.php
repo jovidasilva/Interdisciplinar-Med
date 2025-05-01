@@ -10,9 +10,8 @@ function checkLogin() {
 }
 
 function getHorarioData($conn, $idHorario) {
-    $query = "SELECT h.*, d.nome_departamento, m.nome_modulo, sg.nome_subgrupo, u.nome AS preceptor_nome 
+    $query = "SELECT h.*, m.nome_modulo, sg.nome_subgrupo, u.nome AS preceptor_nome 
               FROM horarios h
-              LEFT JOIN departamentos d ON h.iddepartamento = d.iddepartamento
               LEFT JOIN modulos m ON h.idmodulo = m.idmodulo
               LEFT JOIN subgrupos sg ON h.idsubgrupo = sg.idsubgrupo
               LEFT JOIN usuarios u ON h.idpreceptor = u.idusuario
@@ -33,7 +32,6 @@ function saveOrUpdateHorario($conn, $data) {
     $horaInicio = $data['horaInicio'];
     $horaFim = $data['horaFim'];
     $diaSemana = $data['diaSemana'];
-    $idDepartamento = $data['idDepartamento'];
 
     // Verificar se um horário semelhante já existe
     $query = "SELECT idhorario FROM horarios 
@@ -50,16 +48,16 @@ function saveOrUpdateHorario($conn, $data) {
     if ($idHorario) {
         // Atualizar o horário existente
         $sql = "UPDATE horarios 
-                SET idunidade = ?, idmodulo = ?, idpreceptor = ?, dia_semana = ?, hora_inicio = ?, hora_fim = ?, idsubgrupo = ?, iddepartamento = ? 
+                SET idunidade = ?, idmodulo = ?, idpreceptor = ?, dia_semana = ?, hora_inicio = ?, hora_fim = ?, idsubgrupo = ? 
                 WHERE idhorario = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("iiisssiii", $idUnidade, $idModulo, $idPreceptor, $diaSemana, $horaInicio, $horaFim, $subgrupo, $idDepartamento, $idHorario);
+        $stmt->bind_param("iiisssii", $idUnidade, $idModulo, $idPreceptor, $diaSemana, $horaInicio, $horaFim, $subgrupo, $idHorario);
     } else {
         // Inserir um novo horário
-        $sql = "INSERT INTO horarios (idunidade, idmodulo, idpreceptor, dia_semana, hora_inicio, hora_fim, idsubgrupo, iddepartamento) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO horarios (idunidade, idmodulo, idpreceptor, dia_semana, hora_inicio, hora_fim, idsubgrupo) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("iiisssii", $idUnidade, $idModulo, $idPreceptor, $diaSemana, $horaInicio, $horaFim, $subgrupo, $idDepartamento);
+        $stmt->bind_param("iiisssi", $idUnidade, $idModulo, $idPreceptor, $diaSemana, $horaInicio, $horaFim, $subgrupo);
     }
 
     if ($stmt->execute()) {
@@ -69,28 +67,13 @@ function saveOrUpdateHorario($conn, $data) {
     }
 }
 
-function getDepartamentos($conn, $idUnidade) {
-    $query = "SELECT DISTINCT iddepartamento, nome_departamento FROM departamentos WHERE idunidade = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idUnidade);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $departamentos = array();
-    while ($row = $result->fetch_assoc()) {
-        $departamentos[] = $row;
-    }
-
-    return json_encode($departamentos);
-}
-
-function getModulos($conn, $idDepartamento) {
+function getModulos($conn, $idUnidade) {
     $query = "SELECT DISTINCT m.idmodulo, m.nome_modulo 
               FROM modulos m 
-              JOIN modulos_departamentos md ON m.idmodulo = md.idmodulo 
-              WHERE md.iddepartamento = ?";
+              JOIN unidades_modulos um ON m.idmodulo = um.idmodulo 
+              WHERE um.idunidade = ?";
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idDepartamento);
+    $stmt->bind_param("i", $idUnidade);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -140,7 +123,6 @@ function getPreceptores($conn, $idModulo, $idUnidade) {
     return json_encode($preceptores);
 }
 
-// função para unidade, departamento, modulo, subgrupo e preceptor
 function getUnidades($conn) {
     $query = "SELECT idunidade, nome_unidade FROM unidades";
     $result = $conn->query($query);
@@ -153,28 +135,13 @@ function getUnidades($conn) {
     return $unidades;
 }
 
-function getDepartamentosByUnidade($conn, $idUnidade) {
-    $query = "SELECT iddepartamento, nome_departamento FROM departamentos WHERE idunidade = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idUnidade);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $departamentos = array();
-    while ($row = $result->fetch_assoc()) {
-        $departamentos[] = $row;
-    }
-
-    return $departamentos;
-}
-
-function getModulosByDepartamento($conn, $idDepartamento) {
+function getModulosByUnidade($conn, $idUnidade) {
     $query = "SELECT m.idmodulo, m.nome_modulo 
               FROM modulos m 
-              JOIN modulos_departamentos md ON m.idmodulo = md.idmodulo 
-              WHERE md.iddepartamento = ?";
+              JOIN unidades_modulos um ON m.idmodulo = um.idmodulo 
+              WHERE um.idunidade = ?";
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idDepartamento);
+    $stmt->bind_param("i", $idUnidade);
     $stmt->execute();
     $result = $stmt->get_result();
 

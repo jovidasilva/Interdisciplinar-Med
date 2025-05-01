@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciar Usuários</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../../css/style.css">
     <style>
         body {
@@ -83,19 +84,27 @@
                     <table class="table table-bordered">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" id="selectAll" onclick="selecionarTodos(this)"> Selecionar Todos</th>
-                                <th>ID</th>
-                                <th>Nome</th>
-                                <th>Tipo</th>
-                                <th>Registro</th>
-                                <th>Ativo</th>
+                                <th style="width: 100px;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="selectAll" onclick="selecionarTodos(this)">
+                                        <label class="form-check-label" for="selectAll">Selecionar Todos</label>
+                                    </div>
+                                </th>
+                                <th style="width: 150px;">Nome</th>
+                                <th style="width: 100px;">Tipo</th>
+                                <th style="width: 100px;">Registro</th>
+                                <th style="width: 100px;">Ativo</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php while ($row = $result->fetch_assoc()): ?>
                                 <tr id="linha-<?php echo $row['idusuario']; ?>">
-                                    <td><input type="checkbox" name="usuarios[]" value="<?php echo $row['idusuario']; ?>"></td>
-                                    <td><?php echo htmlspecialchars($row['idusuario']); ?></td>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="usuarios[]" value="<?php echo $row['idusuario']; ?>" id="user-<?php echo $row['idusuario']; ?>">
+                                            <label class="form-check-label" for="user-<?php echo $row['idusuario']; ?>"></label>
+                                        </div>
+                                    </td>
                                     <td><?php echo htmlspecialchars($row['nome']); ?></td>
                                     <td><?php echo tipoTexto($row['tipo']); ?></td>
                                     <td><?php echo isset($row['registro']) ? htmlspecialchars($row['registro']) : 'N/A'; ?></td>
