@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+
+<body>
+    <div th:fragment="conteudo">
+        <h3>Lista de Alunos</h3>
+        <table class="table table-striped table-secondary table-bordered">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>RA</th>
+                    <th>Módulo</th>
+                    <th>Subgrupo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Loop através da lista de alunos -->
+                <tr th:each="aluno : ${alunos}">
+                    <td th:text="${aluno.nome}"></td>
+                    <td th:text="${aluno.registro}"></td>
+                    <td th:text="${aluno.nomeModulo}"></td>
+                    <td th:text="${aluno.nomeSubgrupo}"></td>
+                    <td>
+                        <span class="text-success" th:if="${aluno.avaliacaoRealizada}">Avaliação já realizada</span>
+                        <a th:unless="${aluno.avaliacaoRealizada}" 
+                           th:href="@{/pages/preceptor/avaliacoes/realizar-avaliacao(idaluno=${aluno.idusuario})}" 
+                           class="btn btn-primary">Realizar Avaliação</a>
+                    </td>
+                </tr>
+                
+                <!-- Mensagem se não houver alunos -->
+                <tr th:if="${#lists.isEmpty(alunos)}">
+                    <td colspan="3">Nenhum aluno encontrado.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>

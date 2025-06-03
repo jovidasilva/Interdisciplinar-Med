@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+
+<body>
+    <div th:fragment="conteudo">
+        <h3>Realizar Avaliação</h3>
+        
+        <form th:action="@{/pages/preceptor/avaliacoes/processar-avaliacao}" method="post">
+            <input type="hidden" name="idaluno" th:value="${idaluno}" />
+            <!-- Manter o contexto do subgrupo quando vier da página de grupos -->
+            <input type="hidden" name="idsubgrupo" th:if="${idsubgrupo != null}" th:value="${idsubgrupo}" />
+            
+            <div class="mb-3">
+                <label for="modulo" class="form-label">Módulo</label>
+                
+                <!-- Alerta quando o preceptor não tem acesso a nenhum módulo do aluno -->
+                <div th:if="${semAcesso}" class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    Você não tem acesso para avaliar este aluno em nenhum módulo. 
+                    O aluno está cadastrado nos seguintes módulos:
+                    <ul>
+                        <li th:each="modulo : ${todosModulosAluno}" th:text="${modulo.nomeModulo}"></li>
+                    </ul>
+                    Entre em contato com a coordenação para solicitar acesso.
+                </div>
+                
+                <!-- Select de módulos quando há módulos disponíveis -->
+                <select name="modulo" id="modulo" class="form-select" required th:if="${!#lists.isEmpty(modulos)}">
+                    <option th:each="modulo : ${modulos}" 
+                            th:value="${modulo.idmodulo}" 
+                            th:text="${modulo.nomeModulo}"></option>
+                </select>
+                
+                <!-- Mensagem quando não há módulos cadastrados para o aluno -->
+                <div th:if="${#lists.isEmpty(modulos) && !semAcesso}" class="alert alert-info" role="alert">
+                    <i class="bi bi-info-circle-fill"></i> 
+                    Aluno não está cadastrado em nenhum módulo.
+                </div>
+            </div>
+
+            <div th:if="${not #lists.isEmpty(perguntas)}">
+                <fieldset class="mb-4" th:each="pergunta, stat : ${perguntas}">
+                    <legend th:text="${pergunta.titulo}"></legend>
+                    <p th:text="${pergunta.descricao}"></p>
+
+                    <div>
+                        <input type="radio" th:id="'insuficiente_' + ${stat.index}" 
+                               th:name="'pergunta_' + ${stat.index}" value="4" required>
+                        <label th:for="'insuficiente_' + ${stat.index}">Insuficiente</label>
+                    </div>
+                    <div>
+                        <input type="radio" th:id="'regular_' + ${stat.index}" 
+                               th:name="'pergunta_' + ${stat.index}" value="6" required>
+                        <label th:for="'regular_' + ${stat.index}">Regular</label>
+                    </div>
+                    <div>
+                        <input type="radio" th:id="'bom_' + ${stat.index}" 
+                               th:name="'pergunta_' + ${stat.index}" value="8" required>
+                        <label th:for="'bom_' + ${stat.index}">Bom</label>
+                    </div>
+                    <div>
+                        <input type="radio" th:id="'excelente_' + ${stat.index}" 
+                               th:name="'pergunta_' + ${stat.index}" value="10" required>
+                        <label th:for="'excelente_' + ${stat.index}">Excelente</label>
+                    </div>
+                </fieldset>
+            </div>
+            
+            <div th:if="${#lists.isEmpty(perguntas)}">
+                <p>Nenhuma pergunta disponível.</p>
+            </div>
+            
+            <div class="d-flex justify-content-end">
+                <a th:if="${idsubgrupo != null}" th:href="@{/pages/preceptor/grupos/alunos(idsubgrupo=${idsubgrupo})}" class="btn btn-secondary me-2">Voltar Para Subgrupo</a>
+                <a th:unless="${idsubgrupo != null}" th:href="@{/pages/preceptor/avaliacoes}" class="btn btn-secondary me-2">Voltar Para Avaliações</a>
+                <button type="submit" class="btn btn-primary">Enviar Avaliação</button>
+
+            </div>
+        </form>
+        
+        <style>
+            .fieldset-container {
+                background: #f1f4f9;
+                border-radius: 5px;
+                padding: 1.5rem;
+                margin-bottom: 1rem;
+            }
+            
+            .legend {
+                font-weight: bold;
+                font-size: 1.2rem;
+                color: #333;
+            }
+            
+            fieldset {
+                background: #f1f4f9;
+                border-radius: 5px;
+                padding: 1.5rem;
+                margin-bottom: 1rem;
+                border: 1px solid #dee2e6;
+            }
+            
+            legend {
+                font-weight: bold;
+                font-size: 1.2rem;
+                color: #333;
+                width: auto;
+                padding: 0 10px;
+            }
+        </style>
+    </div>
+</body>
+
+</html>

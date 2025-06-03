@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        /* Menu lateral estilo fixo */
+        nav.menu-lateral {
+            width: 80px;
+            height: calc(100vh - 100px);
+            background-color: rgb(0, 94, 0);
+            position: fixed;
+            top: 100px;
+            left: 0;
+            transition: width 0.2s ease;
+            overflow: hidden;
+            z-index: 110;
+        }
+        
+        nav.menu-lateral:hover {
+            width: 300px;
+        }
+        
+        .ul-menu {
+            height: 100%;
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        ul li.item-menu {
+            transition: 0.2s;
+        }
+        
+        ul li.item-menu:hover {
+            background: rgb(0, 60, 0);
+        }
+        
+        ul li.item-menu a {
+            color: white;
+            text-decoration: none;
+            font-size: 20px;
+            padding: 15px 4%;
+            display: flex;
+            margin-bottom: 10px;
+            line-height: 40px;
+            white-space: nowrap;
+        }
+        
+        ul li.item-menu a .icon {
+            min-width: 60px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        ul li.item-menu a .txt-link {
+            margin-left: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        nav.menu-lateral:hover .txt-link {
+            opacity: 1;
+        }
+        
+        /* Botão do menu para dispositivos menores */
+        .menu-btn {
+            position: fixed;
+            top: 110px;
+            left: 20px;
+            z-index: 120;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .menu-btn {
+                display: block;
+            }
+            nav.menu-lateral {
+                width: 0;
+            }
+            main {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Menu lateral fixo como fragmento reutilizável -->
+    <th:block th:fragment="menu-lateral">
+        <nav class="menu-lateral">
+            <ul class="ul-menu">
+                <li class="item-menu">
+                    <a th:href="@{/pages/preceptor/horarios}">
+                        <span class="icon"><i class="bi bi-alarm"></i></span>
+                        <span class="txt-link">Horários</span>
+                    </a>
+                </li>
+                <li class="item-menu">
+                    <a th:href="@{/pages/preceptor/rodizios}">
+                        <span class="icon"><i class="bi bi-calendar"></i></span>
+                        <span class="txt-link">Rodízios</span>
+                    </a>
+                </li>
+                <li class="item-menu">
+                    <a th:href="@{/pages/preceptor/grupos}">
+                        <span class="icon"><i class="bi bi-people-fill"></i></span>
+                        <span class="txt-link">Grupos</span>
+                    </a>
+                </li>
+                <li class="item-menu">
+                    <a th:href="@{/pages/preceptor/listar-aluno}">
+                        <span class="icon"><i class="bi bi-person-fill"></i></span>
+                        <span class="txt-link">Alunos</span>
+                    </a>
+                </li>
+                <li class="item-menu">
+                    <a th:href="@{/pages/preceptor/avaliacoes/avaliacoes}">
+                        <span class="icon"><i class="bi bi-journal-text"></i></span>
+                        <span class="txt-link">Avaliações</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <!-- Botão do menu para dispositivos menores -->
+        <button class="btn btn-success menu-btn" id="menuButton">
+            <i class="bi bi-list"></i> Menu
+        </button>
+        
+        <script>
+            // Script para abrir/fechar menu em dispositivos menores
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('menuButton').addEventListener('click', function() {
+                    const menuLateral = document.querySelector('.menu-lateral');
+                    if (menuLateral.style.width === '250px') {
+                        menuLateral.style.width = '0';
+                    } else {
+                        menuLateral.style.width = '250px';
+                    }
+                });
+            });
+        </script>
+    </th:block>
+</body>
+</html>
+    
+    <!-- Botão para abrir o menu lateral -->
+    <button th:fragment="botao-menu" class="btn btn-success position-fixed" type="button" data-bs-toggle="offcanvas" data-bs-target="#menuLateral" aria-controls="menuLateral" style="top: 70px; left: 10px; z-index: 1000;">
+        <i class="bi bi-list"></i>
+    </button>
+</body>
+</html>

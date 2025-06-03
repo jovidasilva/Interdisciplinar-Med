@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+
+<body>
+    <div th:fragment="conteudo">
+        <h3>Visualizar Avaliação</h3>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Informações da Avaliação</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Aluno:</strong> <span th:text="${avaliacao.nomeAluno}">Nome do Aluno</span></p>
+                        <p><strong>Módulo:</strong> <span th:text="${avaliacao.nomeModulo}">Nome do Módulo</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Data:</strong> <span th:text="${#temporals.format(avaliacao.dataAvaliacao, 'dd/MM/yyyy')}">01/01/2025</span></p>
+                        <p><strong>Nota Final:</strong> <span th:text="${avaliacao.nota}">10.0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4" th:if="${respostas != null and not #lists.isEmpty(respostas)}">
+            <div class="card-body">
+                <h5 class="card-title">Respostas</h5>
+                
+                <div class="mb-3" th:each="resposta : ${respostas}">
+                    <div class="pergunta-container p-3 mb-3" style="background-color: #f8f9fa; border-radius: 5px;">
+                        <h6 th:text="${resposta.tituloPergunta}">Título da Pergunta</h6>
+                        <p class="text-muted" th:text="${resposta.descricaoPergunta}">Descrição da Pergunta</p>
+                        <p><strong>Avaliação:</strong> 
+                            <span th:text="${resposta.valorResposta == 4 ? 'Insuficiente' : 
+                                            resposta.valorResposta == 6 ? 'Regular' : 
+                                            resposta.valorResposta == 8 ? 'Bom' : 
+                                            resposta.valorResposta == 10 ? 'Excelente' : 'Não avaliado'}">Bom</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-end">
+            <a th:if="${idsubgrupo != null}" th:href="@{/pages/preceptor/grupos/alunos(idsubgrupo=${idsubgrupo})}" class="btn btn-secondary">Voltar Para Subgrupo</a>
+            <a th:unless="${idsubgrupo != null}" th:href="@{/pages/preceptor/avaliacoes}" class="btn btn-secondary">Voltar Para Avaliações</a>
+        </div>
+    </div>
+</body>
+
+</html>
