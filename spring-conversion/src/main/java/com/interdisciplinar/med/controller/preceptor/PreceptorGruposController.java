@@ -31,50 +31,14 @@ public class PreceptorGruposController {
 
     @GetMapping({"/grupos", "/grupos.php"})
     public String grupos(HttpSession session, Model model) {
-        // A verificação de login e tipo de usuário é feita pelo UserDataInterceptor
-        
-        // Obter o ID do preceptor da sessão
         Long idpreceptor = (Long) session.getAttribute("idusuario");
         if (idpreceptor == null) {
             return "redirect:/";
         }
         
-        // Buscar os subgrupos aos quais o preceptor está associado
         List<Map<String, Object>> subgruposPreceptor = new ArrayList<>();
         
         try (Connection conn = dataSource.getConnection()) {
-            // Para debug
-            System.out.println("ID do preceptor: " + idpreceptor);
-            
-            // Verificar se existem dados nas tabelas
-            // 1. Ver todos os subgrupos disponíveis (para debug)
-            try {
-                String sqlAll = "SELECT COUNT(*) AS total FROM subgrupos";
-                try (PreparedStatement stmtAll = conn.prepareStatement(sqlAll)) {
-                    ResultSet rsAll = stmtAll.executeQuery();
-                    if (rsAll.next()) {
-                        System.out.println("Total de subgrupos no sistema: " + rsAll.getInt("total"));
-                    }
-                }
-            } catch (SQLException e) {
-                System.out.println("Erro ao contar subgrupos: " + e.getMessage());
-            }
-            
-            // 2. Ver horários do preceptor (para debug)
-            try {
-                String sqlHorarios = "SELECT COUNT(*) AS total FROM horarios WHERE idpreceptor = ?";
-                try (PreparedStatement stmtHorarios = conn.prepareStatement(sqlHorarios)) {
-                    stmtHorarios.setLong(1, idpreceptor);
-                    ResultSet rsHorarios = stmtHorarios.executeQuery();
-                    if (rsHorarios.next()) {
-                        System.out.println("Total de horários do preceptor: " + rsHorarios.getInt("total"));
-                    }
-                }
-            } catch (SQLException e) {
-                System.out.println("Erro ao contar horários: " + e.getMessage());
-            }
-            
-            // Abordagem 1: Através dos horários
             String sql = "SELECT DISTINCT sg.idsubgrupo, sg.nome_subgrupo, g.idgrupo, g.nome_grupo " +
                          "FROM subgrupos sg " +
                          "JOIN grupos g ON sg.idgrupo = g.idgrupo " +
@@ -95,7 +59,6 @@ public class PreceptorGruposController {
                     subgrupo.put("idgrupo", rs.getLong("idgrupo"));
                     subgrupo.put("nomeGrupo", rs.getString("nome_grupo"));
                     
-                    // Contar quantos alunos estão neste subgrupo
                     String sqlCount = "SELECT COUNT(*) AS total FROM alunos_subgrupos WHERE idsubgrupo = ?";
                     try (PreparedStatement stmtCount = conn.prepareStatement(sqlCount)) {
                         stmtCount.setLong(1, rs.getLong("idsubgrupo"));
@@ -110,11 +73,7 @@ public class PreceptorGruposController {
                     subgruposPreceptor.add(subgrupo);
                 }
                 
-                // Se não encontrou subgrupos pela primeira abordagem, tentar uma segunda
                 if (!encontrouSubgrupos) {
-                    System.out.println("Tentando abordagem alternativa para encontrar subgrupos...");
-                    
-                    // Tentar buscar através de qualquer associação entre preceptor e subgrupo
                     String sqlAlternativo = "SELECT DISTINCT sg.idsubgrupo, sg.nome_subgrupo, g.idgrupo, g.nome_grupo " +
                                            "FROM subgrupos sg " +
                                            "JOIN grupos g ON sg.idgrupo = g.idgrupo " +
@@ -133,7 +92,6 @@ public class PreceptorGruposController {
                             subgrupo.put("idgrupo", rsAlt.getLong("idgrupo"));
                             subgrupo.put("nomeGrupo", rsAlt.getString("nome_grupo"));
                             
-                            // Contar quantos alunos estão neste subgrupo
                             String sqlCount = "SELECT COUNT(*) AS total FROM alunos_subgrupos WHERE idsubgrupo = ?";
                             try (PreparedStatement stmtCount = conn.prepareStatement(sqlCount)) {
                                 stmtCount.setLong(1, rsAlt.getLong("idsubgrupo"));
@@ -150,11 +108,7 @@ public class PreceptorGruposController {
                     }
                 }
                 
-                // Se ainda não encontrou subgrupos, adicionar alguns dados de exemplo
                 if (subgruposPreceptor.isEmpty()) {
-                    System.out.println("Adicionando exemplos para facilitar o teste...");
-                    
-                    // Buscar todos os subgrupos disponíveis como exemplo
                     String sqlExemplo = "SELECT sg.idsubgrupo, sg.nome_subgrupo, g.idgrupo, g.nome_grupo " +
                                        "FROM subgrupos sg " +
                                        "JOIN grupos g ON sg.idgrupo = g.idgrupo " +
@@ -169,12 +123,10 @@ public class PreceptorGruposController {
                             subgrupo.put("nomeSubgrupo", rsEx.getString("nome_subgrupo") + " (Exemplo)");
                             subgrupo.put("idgrupo", rsEx.getLong("idgrupo"));
                             subgrupo.put("nomeGrupo", rsEx.getString("nome_grupo") + " (Exemplo)");
-                            subgrupo.put("totalAlunos", 5); // Valor fixo para exemplo
+                            subgrupo.put("totalAlunos", 5);
                             
                             subgruposPreceptor.add(subgrupo);
                         }
-                    } catch (SQLException e) {
-                        System.out.println("Erro ao buscar exemplos: " + e.getMessage());
                     }
                 }
             }
@@ -191,13 +143,11 @@ public class PreceptorGruposController {
     
     @GetMapping({"/grupos/alunos", "/grupos/alunos.php"})
     public String alunosSubgrupo(@RequestParam("idsubgrupo") Long idsubgrupo, HttpSession session, Model model) {
-        // Obter o ID do preceptor da sessão
         Long idpreceptor = (Long) session.getAttribute("idusuario");
         if (idpreceptor == null) {
             return "redirect:/";
         }
         
-        // Verificar se o preceptor tem acesso a este subgrupo
         boolean temAcesso = false;
         String nomeSubgrupo = "";
         
@@ -223,7 +173,6 @@ public class PreceptorGruposController {
                 return "redirect:/pages/preceptor/grupos";
             }
             
-            // Buscar os alunos deste subgrupo
             List<Map<String, Object>> alunos = new ArrayList<>();
             String sql = "SELECT u.idusuario, u.nome, u.registro " +
                         "FROM usuarios u " +
@@ -241,7 +190,6 @@ public class PreceptorGruposController {
                     aluno.put("nome", rs.getString("nome"));
                     aluno.put("registro", rs.getString("registro"));
                     
-                    // Verificar se o aluno já foi avaliado por este preceptor e obter o ID da avaliação
                     String sqlAvaliacao = "SELECT idavaliacao FROM avaliacoes " +
                                         "WHERE idaluno = ? AND idpreceptor = ? " +
                                         "ORDER BY data_avaliacao DESC LIMIT 1";

@@ -1,5 +1,6 @@
 package com.interdisciplinar.med.controller.preceptor;
 
+import com.interdisciplinar.med.PadrõesDeProjeto.Estruturais.Facade.PreceptorFacade;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Controlador para gerenciamento de rodízios pelos preceptores
@@ -29,9 +32,14 @@ import java.util.TreeSet;
 @Controller
 @RequestMapping({"/pages/preceptor", "/spring/pages/preceptor"})
 public class PreceptorRodiziosController {
+    
+    private static final Logger logger = Logger.getLogger(PreceptorRodiziosController.class.getName());
 
     @Autowired
     private DataSource dataSource;
+    
+    @Autowired
+    private PreceptorFacade preceptorFacade;
 
     // ### MÉTODO AUXILIAR PARA DEFINIR PRIORIDADE DO GRUPO (A -> 1, B -> 2, C -> 3, outros -> 4)
     private int obterPrioridadeGrupo(Map<String, Object> rodizio) {
@@ -56,8 +64,6 @@ public class PreceptorRodiziosController {
         if (idpreceptor == null) {
             return "redirect:/";
         }
-        
-        System.out.println("ID do preceptor: " + idpreceptor);
         
         // Buscar os módulos do preceptor com informações de período de atendimento
         List<Map<String, Object>> rodizios = new ArrayList<>();
@@ -84,21 +90,7 @@ public class PreceptorRodiziosController {
             
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, idpreceptor);
-                System.out.println("Executando consulta com ID do preceptor: " + idpreceptor);
-                
-                // Imprimir a consulta SQL para debug
-                System.out.println("Consulta SQL: " + sql.replace("?", idpreceptor.toString()));
-                
                 ResultSet rs = stmt.executeQuery();
-                
-                // Verificar se a consulta retornou resultados
-                boolean hasResults = rs.isBeforeFirst(); // Verifica se há resultados sem mover o cursor
-                if (!hasResults) {
-                    System.out.println("A consulta não retornou nenhum resultado!");
-                    System.out.println("Verifique se o ID do preceptor " + idpreceptor + " está associado a algum módulo na tabela preceptores_modulos.");
-                } else {
-                    System.out.println("A consulta retornou resultados!");
-                }
                 
                 DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                 
@@ -139,13 +131,9 @@ public class PreceptorRodiziosController {
                     }
                     
                     rodizio.put("subgrupos", subgruposList);
-                    
                     rodizios.add(rodizio);
-                    System.out.println("Rodizio adicionado: Módulo=" + rodizio.get("nomeModulo") + ", Período=" + rodizio.get("periodo"));
                 }
             }
-            
-            System.out.println("Total de rodízios encontrados: " + rodizios.size());
             
             // Extrair todos os períodos disponíveis para o filtro
             Set<String> periodos = new TreeSet<>((p1, p2) -> {
@@ -209,6 +197,17 @@ public class PreceptorRodiziosController {
             model.addAttribute("periodos", periodos);
             model.addAttribute("rodiziosPorModulo", rodiziosPorModulo);
             model.addAttribute("rodizios", rodizios);
+            
+            // Adicionar dados do preceptor usando o padrão Facade
+            try {
+                Map<String, Object> preceptorData = preceptorFacade.obterDadosPreceptor(idpreceptor);
+                if (preceptorData != null && !preceptorData.isEmpty()) {
+                    model.addAttribute("preceptor", preceptorData);
+                }
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Erro ao usar PreceptorFacade para obter dados do preceptor", e);
+                // Continuar com o código existente se a fachada falhar
+            }
             
         } catch (SQLException e) {
             e.printStackTrace();

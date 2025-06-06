@@ -9,7 +9,6 @@
                 <tr>
                     <th>Nome</th>
                     <th>RA</th>
-                    <th>Módulo</th>
                     <th>Subgrupo</th>
                     <th>Ações</th>
                 </tr>
@@ -19,7 +18,6 @@
                 <tr th:each="aluno : ${alunos}">
                     <td th:text="${aluno.nome}"></td>
                     <td th:text="${aluno.registro}"></td>
-                    <td th:text="${aluno.nomeModulo}"></td>
                     <td th:text="${aluno.nomeSubgrupo}"></td>
                     <td>
                         <span class="text-success" th:if="${aluno.avaliacaoRealizada}">Avaliação já realizada</span>

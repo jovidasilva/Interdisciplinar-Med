@@ -1,5 +1,6 @@
 package com.interdisciplinar.med.controller.preceptor;
 
+import com.interdisciplinar.med.PadrõesDeProjeto.Estruturais.Facade.PreceptorFacade;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -19,6 +20,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Controlador para gerenciamento de avaliações dos alunos pelos preceptores
@@ -27,23 +30,37 @@ import java.util.Map;
 @RequestMapping({"/pages/preceptor", "/spring/pages/preceptor"})
 public class PreceptorAvaliacoesController {
 
+    private static final Logger logger = Logger.getLogger(PreceptorAvaliacoesController.class.getName());
+
     @Autowired
     private DataSource dataSource;
+    
+    @Autowired
+    private PreceptorFacade preceptorFacade;
 
     /**
      * Página principal de avaliações
      */
     @GetMapping({"/avaliacoes", "/avaliacoes.php", "/avaliacoes/avaliacoes", "/avaliacoes/avaliacoes.php"})
     public String avaliacoes(HttpSession session, Model model) {
-        // Obter o ID do preceptor da sessão
         Long idpreceptor = (Long) session.getAttribute("idusuario");
         if (idpreceptor == null) {
             return "redirect:/";
         }
         
+        try {
+            // Tentar usar o padrão Facade para obter dados do preceptor
+            Map<String, Object> preceptorData = preceptorFacade.obterDadosPreceptor(idpreceptor);
+            if (preceptorData != null && !preceptorData.isEmpty()) {
+                model.addAttribute("preceptor", preceptorData);
+            }
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Erro ao usar PreceptorFacade para obter dados do preceptor", e);
+            // Continuar com o código existente se a fachada falhar
+        }
+        
         // Carregar a lista de alunos associados ao preceptor logado
         try (Connection conn = dataSource.getConnection()) {
-            // Nova consulta SQL que busca apenas alunos associados ao preceptor
             String sql = "SELECT u.idusuario, u.nome, u.registro, sg.nome_subgrupo, m.nome_modulo " +
                          "FROM preceptores_modulos pm " +
                          "JOIN horarios h ON h.idmodulo = pm.idmodulo AND h.idpreceptor = pm.idusuario " +
@@ -60,7 +77,7 @@ public class PreceptorAvaliacoesController {
                 stmt.setLong(1, idpreceptor);
                 ResultSet rs = stmt.executeQuery();
                 
-                Map<Long, Map<String, Object>> alunosMap = new HashMap<>(); // Para evitar duplicatas
+                Map<Long, Map<String, Object>> alunosMap = new HashMap<>();
                 
                 while (rs.next()) {
                     Long idAluno = rs.getLong("idusuario");
@@ -109,7 +126,6 @@ public class PreceptorAvaliacoesController {
                     }
                 }
                 
-                // Converte o mapa para lista
                 alunos.addAll(alunosMap.values());
             }
             
@@ -135,14 +151,12 @@ public class PreceptorAvaliacoesController {
             @RequestParam(value = "idsubgrupo", required = false) Long idsubgrupo,
             HttpSession session, 
             Model model) {
-        // Verificar se o preceptor está logado
         Long idpreceptor = (Long) session.getAttribute("idusuario");
         if (idpreceptor == null) {
             return "redirect:/";
         }
         
         try (Connection conn = dataSource.getConnection()) {
-            // Buscar dados do aluno
             String sqlAluno = "SELECT * FROM usuarios WHERE idusuario = ?";
             Map<String, Object> aluno = new HashMap<>();
             
@@ -155,19 +169,17 @@ public class PreceptorAvaliacoesController {
                     aluno.put("nome", rs.getString("nome"));
                     aluno.put("registro", rs.getString("registro"));
                 } else {
-                    // Aluno não encontrado
                     model.addAttribute("erro", "Aluno não encontrado");
                     return "redirect:/pages/preceptor/avaliacoes";
                 }
             }
             
-            // Buscar módulos que são comuns entre o aluno e o preceptor
             String sqlModulos = "SELECT m.idmodulo, m.nome_modulo " +
                               "FROM modulos m " +
                               "INNER JOIN modulos_alunos ma ON m.idmodulo = ma.idmodulo " +
                               "INNER JOIN preceptores_modulos pm ON m.idmodulo = pm.idmodulo " +
-                              "WHERE ma.idusuario = ? " +  // ID do aluno sendo avaliado
-                              "AND pm.idusuario = ? "; // ID do preceptor logado
+                              "WHERE ma.idusuario = ? " +
+                              "AND pm.idusuario = ? "; 
             
             List<Map<String, Object>> modulos = new ArrayList<>();
             
@@ -199,16 +211,15 @@ public class PreceptorAvaliacoesController {
                     while (rs.next()) {
                         Map<String, Object> modulo = new HashMap<>();
                         modulo.put("idmodulo", rs.getLong("idmodulo"));
-                        modulo.put("nomeModulo", rs.getString("nome_modulo") + " (Sem acesso)");
+                        modulo.put("nomeModulo", rs.getString("nome_modulo"));
                         todosModulosAluno.add(modulo);
                     }
                 }
                 
-                model.addAttribute("semAcesso", true);
                 model.addAttribute("todosModulosAluno", todosModulosAluno);
+                model.addAttribute("erro", "O aluno e o preceptor não possuem módulos em comum.");
             }
             
-            // Buscar perguntas da avaliação
             String sqlPerguntas = "SELECT * FROM perguntas_avaliacoes";
             List<Map<String, Object>> perguntas = new ArrayList<>();
             
@@ -224,20 +235,7 @@ public class PreceptorAvaliacoesController {
                 }
             }
             
-            // Se não houver perguntas no banco, criar algumas de exemplo
-            if (perguntas.isEmpty()) {
-                Map<String, Object> pergunta1 = new HashMap<>();
-                pergunta1.put("idpergunta", 1L);
-                pergunta1.put("titulo", "Assiduidade");
-                pergunta1.put("descricao", "Avalie a assiduidade do aluno nas atividades práticas");
-                perguntas.add(pergunta1);
-                
-                Map<String, Object> pergunta2 = new HashMap<>();
-                pergunta2.put("idpergunta", 2L);
-                pergunta2.put("titulo", "Participação");
-                pergunta2.put("descricao", "Avalie o nível de participação do aluno nas atividades");
-                perguntas.add(pergunta2);
-            }
+          
             
             model.addAttribute("aluno", aluno);
             model.addAttribute("modulos", modulos);
@@ -245,7 +243,6 @@ public class PreceptorAvaliacoesController {
             model.addAttribute("idaluno", idaluno);
             model.addAttribute("page", "realizar-avaliacao");
             
-            // Adicionar o idsubgrupo ao modelo, se fornecido
             if (idsubgrupo != null) {
                 model.addAttribute("idsubgrupo", idsubgrupo);
             }
@@ -271,14 +268,12 @@ public class PreceptorAvaliacoesController {
             HttpSession session,
             RedirectAttributes redirectAttributes) {
         
-        // Verificar se o preceptor está logado
         Long idpreceptor = (Long) session.getAttribute("idusuario");
         if (idpreceptor == null) {
             return "redirect:/";
         }
         
         try (Connection conn = dataSource.getConnection()) {
-            // Calcular nota média baseada nas respostas
             double notaTotal = 0;
             int numPerguntas = 0;
             
@@ -296,7 +291,6 @@ public class PreceptorAvaliacoesController {
             
             double notaMedia = numPerguntas > 0 ? notaTotal / numPerguntas : 0;
             
-            // Inserir a avaliação no banco de dados
             String sql = "INSERT INTO avaliacoes (idaluno, idpreceptor, idmodulo, nota, data_avaliacao) VALUES (?, ?, ?, ?, NOW())";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, idaluno);
@@ -336,7 +330,6 @@ public class PreceptorAvaliacoesController {
             Model model) {
         // Método para visualizar detalhes de uma avaliação específica
         try (Connection conn = dataSource.getConnection()) {
-            // Verificar se a avaliação existe
             String checkSql = "SELECT COUNT(*) FROM avaliacoes WHERE idavaliacao = ?";
             try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
                 checkStmt.setLong(1, idavaliacao);
@@ -347,7 +340,6 @@ public class PreceptorAvaliacoesController {
                 }
             }
             
-            // Buscar detalhes da avaliação
             String sql = "SELECT a.*, u.nome as nome_aluno, m.nome_modulo " +
                        "FROM avaliacoes a " +
                        "JOIN usuarios u ON a.idaluno = u.idusuario " +
@@ -368,19 +360,16 @@ public class PreceptorAvaliacoesController {
                     avaliacao.put("nomeModulo", rs.getString("nome_modulo"));
                     avaliacao.put("nota", rs.getDouble("nota"));
                     avaliacao.put("dataAvaliacao", rs.getDate("data_avaliacao").toLocalDate());
-                    // Avaliação encontrada e dados carregados
                 } else {
                     model.addAttribute("erro", "Avaliação não encontrada.");
                     return "redirect:/pages/preceptor/avaliacoes";
                 }
             }
             
-            // Criar lista vazia de respostas para evitar nullpointerexception
             model.addAttribute("respostas", new ArrayList<>());
             model.addAttribute("avaliacao", avaliacao);
             model.addAttribute("page", "visualizar-avaliacao");
             
-            // Adicionar o ID do subgrupo ao modelo, se fornecido
             if (idsubgrupo != null) {
                 model.addAttribute("idsubgrupo", idsubgrupo);
             }

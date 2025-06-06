@@ -21,7 +21,7 @@
         }
         .subgrupo-badge {
             display: inline-block !important;
-            background-color: #198754 !important;
+            background-color: #005E00 !important;
             color: white !important;
             padding: 5px 10px !important;
             border-radius: 4px !important;
@@ -43,6 +43,18 @@
         }
         .card-body .row .subgrupo-col {
             padding-left: 0 !important;
+        }
+        /* Cores personalizadas */
+        .bg-custom-green {
+            background-color: #005E00 !important;
+            color: white !important;
+        }
+        .border-custom-green {
+            border-color: #005E00 !important;
+        }
+        .badge-custom-green {
+            background-color: #005E00 !important;
+            color: white !important;
         }
     </style>
 </head>
@@ -82,8 +94,8 @@
                             
                             <div class="row">
                                 <div class="col-md-6 col-lg-4 mb-4" th:each="rodizio : ${entry.value}">
-                                    <div class="card h-100 border-success">
-                                        <div class="card-header bg-success text-white">
+                                    <div class="card h-100 border-custom-green">
+                                        <div class="card-header bg-custom-green">
                                             <!-- Removido o número do período -->
                                         </div>
                                         <div class="card-body">
@@ -105,21 +117,21 @@
                                                         <!-- Grupo A -->
                                                         <td style="vertical-align: top; padding: 0; text-align: left;" th:if="${rodizio.subgrupos.?[#strings.startsWith(#this,'A')].size() > 0}">
                                                             <div th:each="subgrupo : ${rodizio.subgrupos}" th:if="${#strings.startsWith(subgrupo, 'A')}">
-                                                                <span style="background-color: #198754; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" th:text="${subgrupo}"></span>
+                                                                <span style="background-color: #005E00; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" th:text="${subgrupo}"></span>
                                                             </div>
                                                         </td>
 
                                                         <!-- Grupo B -->
                                                         <td style="vertical-align: top; padding: 0; text-align: left;" th:if="${rodizio.subgrupos.?[#strings.startsWith(#this,'B')].size() > 0}">
                                                             <div th:each="subgrupo : ${rodizio.subgrupos}" th:if="${#strings.startsWith(subgrupo, 'B')}">
-                                                                <span style="background-color: #198754; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" th:text="${subgrupo}"></span>
+                                                                <span style="background-color: #005E00; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" th:text="${subgrupo}"></span>
                                                             </div>
                                                         </td>
 
                                                         <!-- Grupo C -->
                                                         <td style="vertical-align: top; padding: 0; text-align: left;" th:if="${rodizio.subgrupos.?[#strings.startsWith(#this,'C')].size() > 0}">
                                                             <div th:each="subgrupo : ${rodizio.subgrupos}" th:if="${#strings.startsWith(subgrupo, 'C')}">
-                                                                <span style="background-color: #198754; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" th:text="${subgrupo}"></span>
+                                                                <span style="background-color: #005E00; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" th:text="${subgrupo}"></span>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -130,7 +142,7 @@
                                                      th:if="${rodizio.subgrupos.?[!#strings.startsWith(#this, 'A') && !#strings.startsWith(#this, 'B') && !#strings.startsWith(#this, 'C')].size() > 0}">
                                                     <div th:each="subgrupo : ${rodizio.subgrupos}" 
                                                          th:if="${!#strings.startsWith(subgrupo, 'A') && !#strings.startsWith(subgrupo, 'B') && !#strings.startsWith(subgrupo, 'C')}">
-                                                        <span style="background-color: #198754; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" 
+                                                        <span style="background-color: #005E00; color: white; padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; display: inline-block;" 
                                                               th:text="${subgrupo}"></span>
                                                     </div>
                                                 </div>

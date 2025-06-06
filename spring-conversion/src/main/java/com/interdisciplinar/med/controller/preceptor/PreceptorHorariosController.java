@@ -31,19 +31,14 @@ public class PreceptorHorariosController {
 
     @GetMapping({"/horarios", "/horarios.php"})
     public String horarios(HttpSession session, Model model) {
-        // A verificação de login e tipo de usuário é feita pelo UserDataInterceptor
-        
-        // Obter o ID do preceptor da sessão
         Long idpreceptor = (Long) session.getAttribute("idusuario");
         if (idpreceptor == null) {
             return "redirect:/";
         }
         
-        // Buscar os horários do preceptor no banco de dados
         List<Map<String, Object>> horarios = new ArrayList<>();
         
         try (Connection conn = dataSource.getConnection()) {
-            // SQL para buscar os horários do preceptor
             String sql = "SELECT h.*, u.nome_unidade, m.nome_modulo, sg.nome_subgrupo " +
                           "FROM horarios h " +
                           "JOIN unidades u ON h.idunidade = u.idunidade " +
@@ -73,7 +68,6 @@ public class PreceptorHorariosController {
                 }
             }
             
-            // Buscar os subgrupos aos quais o preceptor dará aula
             List<Map<String, Object>> subgruposPreceptor = new ArrayList<>();
             String sqlSubgrupos = "SELECT DISTINCT sg.idsubgrupo, sg.nome_subgrupo, g.nome_grupo " +
                                  "FROM subgrupos sg " +

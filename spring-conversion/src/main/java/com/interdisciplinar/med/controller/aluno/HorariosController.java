@@ -12,9 +12,6 @@ public class HorariosController {
 
     @GetMapping({"/horarios", "/horarios.php"})
     public String horarios(HttpSession session, Model model) {
-        
-        // Sem dados de exemplo, serão implementados posteriormente
-        
         return "aluno/horarios";
     }
 }

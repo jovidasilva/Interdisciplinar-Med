@@ -26,7 +26,6 @@ public class HomeController {
                       @RequestParam(required = false) String login,
                       @RequestParam(required = false) String userid) {
         
-        // Salvar o login na sessão se disponível (ainda útil para outras páginas)
         HttpSession session = request.getSession(true);
         if (login != null) {
             session.setAttribute("login", login);
@@ -34,15 +33,12 @@ public class HomeController {
             // Carregar dados do usuário do banco de dados
             Map<String, Object> userData = usuarioService.buscarUsuarioPorLogin(login);
             if (userData != null) {
-                // Definir o nome do usuário na sessão e no modelo
                 String nome = (String) userData.get("nome");
                 if (nome != null && !nome.isEmpty()) {
                     session.setAttribute("nome", nome);
                     model.addAttribute("nome", nome);
-                    System.out.println("✓ Nome do usuário definido na home do aluno: " + nome);
                 }
                 
-                // Definir o tipo do usuário na sessão e no modelo
                 Integer tipo = (Integer) userData.get("tipo");
                 if (tipo != null) {
                     session.setAttribute("tipo", tipo);
@@ -53,7 +49,6 @@ public class HomeController {
             // Verificar se já temos login na sessão
             login = (String) session.getAttribute("login");
             if (login != null) {
-                // Verificar se o nome já está na sessão
                 if (session.getAttribute("nome") == null) {
                     // Carregar dados do usuário do banco de dados
                     Map<String, Object> userData = usuarioService.buscarUsuarioPorLogin(login);
@@ -62,14 +57,12 @@ public class HomeController {
                         if (nome != null && !nome.isEmpty()) {
                             session.setAttribute("nome", nome);
                             model.addAttribute("nome", nome);
-                            System.out.println("✓ Nome do usuário definido na home do aluno (da sessão): " + nome);
                         }
                     }
                 }
             }
         }
         
-        System.out.println("***** HOME CONTROLLER CONCLUÍDO *****\n");
         return "aluno/home";
     }
 }

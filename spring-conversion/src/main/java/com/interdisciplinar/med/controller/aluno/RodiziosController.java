@@ -10,8 +10,6 @@ public class RodiziosController {
 
     @GetMapping({"/rodizios", "/rodizios.php"})
     public String rodizios() {
-        // Não precisamos mais adicionar os atributos da sessão manualmente
-        // O SessionAttributesInterceptor fará isso automaticamente
         return "aluno/rodizios";
     }
 }

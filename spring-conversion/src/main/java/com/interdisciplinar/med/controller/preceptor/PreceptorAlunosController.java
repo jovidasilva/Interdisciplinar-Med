@@ -1,6 +1,5 @@
 package com.interdisciplinar.med.controller.preceptor;
 
-import com.interdisciplinar.med.service.UsuarioService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -26,27 +25,19 @@ import javax.sql.DataSource;
 public class PreceptorAlunosController {
 
     @Autowired
-    private UsuarioService usuarioService;
-
-    @Autowired
     private DataSource dataSource;
     
     @GetMapping({"/listar-aluno", "/listar-aluno.php"})
     public String listarAlunos(HttpSession session, Model model) {
-        // A verificação de login e tipo de usuário é feita pelo UserDataInterceptor
-        
-        // Obter o ID do preceptor da sessão
         Long idpreceptor = (Long) session.getAttribute("idusuario");
         if (idpreceptor == null) {
             return "redirect:/";
         }
         
-        // Buscar todos os alunos que o preceptor gerencia (associados aos seus subgrupos)
         List<Map<String, Object>> alunos = new ArrayList<>();
         
         try (Connection conn = dataSource.getConnection()) {
-            // SQL para buscar alunos gerenciados pelo preceptor logado
-            // Baseado na consulta fornecida como guia
+            
             String sql = "SELECT u.nome, u.idusuario, u.registro, sg.nome_subgrupo, sg.idsubgrupo, m.nome_modulo, m.idmodulo " +
                           "FROM usuarios u " +
                           "JOIN alunos_subgrupos alsg ON u.idusuario = alsg.idusuario " +
@@ -60,7 +51,6 @@ public class PreceptorAlunosController {
                 stmt.setLong(1, idpreceptor);
                 ResultSet rs = stmt.executeQuery();
                 
-                // Criar um Map para armazenar os alunos únicos (para evitar duplicatas)
                 Map<Long, Map<String, Object>> alunosMap = new HashMap<>();
                 
                 while (rs.next()) {
@@ -68,11 +58,9 @@ public class PreceptorAlunosController {
                     Long idSubgrupo = rs.getLong("idsubgrupo");
                     Long idModulo = rs.getLong("idmodulo");
                     
-                    // Se este aluno já foi adicionado, apenas atualizar informações se necessário
                     if (alunosMap.containsKey(idUsuario)) {
                         Map<String, Object> alunoExistente = alunosMap.get(idUsuario);
                         
-                        // Adicionar subgrupo se for diferente
                         String subgruposAtuais = (String) alunoExistente.get("nomeSubgrupo");
                         String novoSubgrupo = rs.getString("nome_subgrupo");
                         if (!subgruposAtuais.contains(novoSubgrupo)) {
@@ -90,7 +78,6 @@ public class PreceptorAlunosController {
                     aluno.put("nomeModulo", rs.getString("nome_modulo"));
                     aluno.put("nomeSubgrupo", rs.getString("nome_subgrupo"));
                     
-                    // Buscar nota do aluno (se existir)
                     try {
                         String sqlNota = "SELECT nota, data_avaliacao FROM avaliacoes " +
                                          "WHERE idaluno = ? AND idpreceptor = ? " +
@@ -116,7 +103,6 @@ public class PreceptorAlunosController {
                     alunosMap.put(idUsuario, aluno);
                 }
                 
-                // Converter o Map para uma List
                 alunos.addAll(alunosMap.values());
             }
         } catch (SQLException e) {

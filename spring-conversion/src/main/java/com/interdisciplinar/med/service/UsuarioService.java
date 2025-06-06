@@ -25,18 +25,14 @@ public class UsuarioService {
      */
     public Map<String, Object> buscarUsuarioPorLogin(String login) {
         try {
-            // Buscar o usuário usando o repositório JPA
             Usuario usuario = usuarioRepository.findByLogin(login);
             
             if (usuario != null) {
-                System.out.println("✓ Usuário encontrado no banco de dados: " + login);
                 return converterUsuarioParaMap(usuario);
             } else {
-                System.out.println("✗ Nenhum usuário encontrado com o login: " + login);
                 return null;
             }
         } catch (Exception e) {
-            System.err.println("✗ ERRO ao buscar usuário por login: " + e.getMessage());
             return null;
         }
     }
@@ -48,18 +44,14 @@ public class UsuarioService {
      */
     public Map<String, Object> buscarUsuarioPorId(Long idUsuario) {
         try {
-            // Buscar o usuário usando o repositório JPA
             Usuario usuario = usuarioRepository.findById(idUsuario).orElse(null);
             
             if (usuario != null) {
-                System.out.println("✓ Usuário encontrado no banco de dados por ID: " + idUsuario);
                 return converterUsuarioParaMap(usuario);
             } else {
-                System.out.println("✗ Nenhum usuário encontrado com o ID: " + idUsuario);
                 return null;
             }
         } catch (Exception e) {
-            System.err.println("✗ ERRO ao buscar usuário por ID: " + e.getMessage());
             return null;
         }
     }

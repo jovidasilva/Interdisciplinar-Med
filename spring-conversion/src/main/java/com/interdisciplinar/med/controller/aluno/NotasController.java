@@ -10,8 +10,6 @@ public class NotasController {
 
     @GetMapping({"/notas", "/notas.php"})
     public String notas() {
-        // Não precisamos mais adicionar os atributos da sessão manualmente
-        // O SessionAttributesInterceptor fará isso automaticamente
         return "aluno/notas";
     }
 }
