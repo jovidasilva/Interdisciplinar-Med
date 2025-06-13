@@ -39,7 +39,7 @@ public class PreceptorHorariosController {
         List<Map<String, Object>> horarios = new ArrayList<>();
         
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT h.*, u.nome_unidade, m.nome_modulo, sg.nome_subgrupo " +
+            String sql = "SELECT h.*, u.nome_unidade, m.nome_modulo, m.periodo, sg.nome_subgrupo " +
                           "FROM horarios h " +
                           "JOIN unidades u ON h.idunidade = u.idunidade " +
                           "JOIN modulos m ON h.idmodulo = m.idmodulo " +
@@ -62,6 +62,7 @@ public class PreceptorHorariosController {
                     horario.put("local", rs.getString("local"));
                     horario.put("nomeUnidade", rs.getString("nome_unidade"));
                     horario.put("nomeModulo", rs.getString("nome_modulo"));
+                    horario.put("periodo", rs.getString("periodo"));
                     horario.put("nomeSubgrupo", rs.getString("nome_subgrupo"));
                     
                     horarios.add(horario);

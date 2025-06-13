@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.interdisciplinar.med.PadrõesDeProjeto.Estruturais.Facade.PreceptorFacade;
+
 /**
  * Controlador para gerenciamento de grupos pelos preceptores
  */
@@ -28,6 +30,9 @@ public class PreceptorGruposController {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private PreceptorFacade preceptorFacade;
 
     @GetMapping({"/grupos", "/grupos.php"})
     public String grupos(HttpSession session, Model model) {
@@ -186,9 +191,18 @@ public class PreceptorGruposController {
                 
                 while (rs.next()) {
                     Map<String, Object> aluno = new HashMap<>();
-                    aluno.put("idusuario", rs.getLong("idusuario"));
+                    Long idAluno = rs.getLong("idusuario");
+                    aluno.put("idusuario", idAluno);
                     aluno.put("nome", rs.getString("nome"));
                     aluno.put("registro", rs.getString("registro"));
+                    
+                    // Recupera módulos compartilhados (preceptor & aluno)
+                    List<Map<String, Object>> modulos = preceptorFacade.obterModulosAlunoPreceptor(idAluno, idpreceptor);
+                    if (!modulos.isEmpty()) {
+                        Map<String, Object> primeiro = modulos.get(0);
+                        aluno.put("idModulo", primeiro.get("idmodulo"));
+                        aluno.put("nomeModulo", primeiro.get("nomeModulo"));
+                    }
                     
                     String sqlAvaliacao = "SELECT idavaliacao FROM avaliacoes " +
                                         "WHERE idaluno = ? AND idpreceptor = ? " +

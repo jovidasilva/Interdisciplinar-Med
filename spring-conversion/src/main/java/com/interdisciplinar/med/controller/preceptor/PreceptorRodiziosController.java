@@ -18,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +151,29 @@ public class PreceptorRodiziosController {
                 periodos.add((String) rodizio.get("periodo"));
             }
             
+            // ---- Filtrar subgrupos para mostrar apenas aqueles em que o preceptor possui horário ----
+            java.util.Set<String> subgruposPermitidos = new java.util.HashSet<>();
+            String sqlSubPermitidos = "SELECT DISTINCT sg.nome_subgrupo " +
+                                      "FROM horarios h " +
+                                      "JOIN subgrupos sg ON sg.idsubgrupo = h.idsubgrupo " +
+                                      "WHERE h.idpreceptor = ?";
+            try (PreparedStatement stmtSub = conn.prepareStatement(sqlSubPermitidos)) {
+                stmtSub.setLong(1, idpreceptor);
+                ResultSet rsSub = stmtSub.executeQuery();
+                while (rsSub.next()) {
+                    subgruposPermitidos.add(rsSub.getString(1));
+                }
+            }
+
+            for (Map<String, Object> rod : rodizios) {
+                @SuppressWarnings("unchecked")
+                List<String> sgs = (List<String>) rod.get("subgrupos");
+                if (sgs != null) {
+                    sgs.removeIf(nome -> !subgruposPermitidos.contains(nome));
+                    rod.put("subgruposTexto", String.join(", ", sgs));
+                }
+            }
+            
             // Agrupar os rodízios por nome do módulo para exibição horizontal
             Map<String, List<Map<String, Object>>> rodiziosPorModulo = new LinkedHashMap<>();
             
@@ -194,10 +218,6 @@ public class PreceptorRodiziosController {
                 Collections.sort(lista, (r1, r2) -> Integer.compare(obterPrioridadeGrupo(r1), obterPrioridadeGrupo(r2)));
             }
             
-            model.addAttribute("periodos", periodos);
-            model.addAttribute("rodiziosPorModulo", rodiziosPorModulo);
-            model.addAttribute("rodizios", rodizios);
-            
             // Adicionar dados do preceptor usando o padrão Facade
             try {
                 Map<String, Object> preceptorData = preceptorFacade.obterDadosPreceptor(idpreceptor);
@@ -208,6 +228,11 @@ public class PreceptorRodiziosController {
                 logger.log(Level.WARNING, "Erro ao usar PreceptorFacade para obter dados do preceptor", e);
                 // Continuar com o código existente se a fachada falhar
             }
+            
+            // Add atributos ao modelo após filtragem
+            model.addAttribute("periodos", periodos);
+            model.addAttribute("rodiziosPorModulo", rodiziosPorModulo);
+            model.addAttribute("rodizios", rodizios);
             
         } catch (SQLException e) {
             e.printStackTrace();

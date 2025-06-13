@@ -3,9 +3,42 @@
 
 <body>
     <div th:fragment="conteudo">
-        <h3>Visualizar Avaliação</h3>
+        <!-- Título -->
+        <h3 th:if="${historico != null}" th:text="${'Histórico de Avaliações: ' + aluno_nome}"></h3>
+        <h3 th:if="${historico == null}">Visualizar Avaliação</h3>
         
-        <div class="card mb-4">
+        <!-- Lista de avaliações -->
+        <div class="card mb-4" th:if="${historico != null}">
+            <div class="card-body">
+                <h5 class="card-title">Avaliações Realizadas</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Módulo</th>
+                                <th>Período</th>
+                                <th>Nota</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="av : ${historico}">
+                                <td th:text="${#temporals.format(av.dataAvaliacao, 'dd/MM/yyyy')}"></td>
+                                <td th:text="${av.nomeModulo}"></td>
+                                <td th:text="${av.periodo}"></td>
+                                <td th:text="${av.nota}"></td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(historico)}">
+                                <td colspan="4" class="text-center text-muted">Não há nenhuma avaliação realizada no momento.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalhe de uma avaliação específica -->
+        <div class="card mb-4" th:if="${respostas != null and not #lists.isEmpty(respostas)}">
             <div class="card-body">
                 <h5 class="card-title">Informações da Avaliação</h5>
                 <div class="row mb-3">

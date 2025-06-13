@@ -62,9 +62,3 @@ O sistema utiliza o mesmo banco de dados MySQL do sistema PHP existente:
 - Nome do banco: `proj_internato`
 - Tabelas principais: `usuarios`, `grupos`, `subgrupos`, `modulos`, `avaliacoes`, `horarios`, `rodizios`
 
-## Próximos Passos
-
-1. Implementar serviços para buscar dados do banco de dados
-2. Completar a migração das páginas de coordenação
-3. Migrar o sistema de cadastro para Spring Boot
-4. Implementar testes automatizados

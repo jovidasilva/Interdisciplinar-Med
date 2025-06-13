@@ -31,7 +31,7 @@
                                 <th>Módulo</th>
                                 <th>Unidade</th>
                                 <th>Subgrupo</th>
-                                <th>Ações</th>
+                                <th>Período</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -42,9 +42,7 @@
                                 <td th:text="${horario.nomeModulo}"></td>
                                 <td th:text="${horario.nomeUnidade}"></td>
                                 <td th:text="${horario.nomeSubgrupo}"></td>
-                                <td>
-                                    <span class="badge text-bg-info fs-6 fw-normal p-2">Definido pelo coordenador</span>
-                                </td>
+                                <td th:text="${horario.periodo}"></td>
                             </tr>
                             <tr th:if="${#lists.isEmpty(horarios)}">
                                 <td colspan="8">Nenhum horário encontrado.</td>
