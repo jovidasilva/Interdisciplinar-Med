@@ -19,11 +19,11 @@ if ($row && password_verify($senha, $row->senha)) {
     $_SESSION["idusuario"] = $row->idusuario;
 
     if ($row->tipo == 0) {
-        $springUrl = "http://localhost:8080/spring/pages/aluno/home?userid=" . $row->idusuario . "&login=" . urlencode($login);
-        echo "<script>location.href='$springUrl';</script>";
+        // Aluno
+        echo "<script>location.href='../pages/aluno/home.php';</script>";
     } elseif ($row->tipo == 1) {
-        $springUrl = "http://localhost:8080/spring/pages/preceptor/home?userid=" . $row->idusuario . "&login=" . urlencode($login);
-        echo "<script>location.href='$springUrl';</script>";
+        // Preceptor
+        echo "<script>location.href='../pages/preceptor/home.php';</script>";
     } elseif ($row->tipo == 2 || $row->tipo == 3) {
         echo "<script>location.href='../pages/coordenacao/home.php';</script>";
     } else {

@@ -2,25 +2,44 @@
 include('../../../cfg/config.php');
 
 $idaluno = isset($_GET['idaluno']) ? intval($_GET['idaluno']) : null;
+$id_modulo = isset($_GET['id_modulo']) ? intval($_GET['id_modulo']) : null;
+$aluno_nome = isset($_GET['aluno_nome']) ? $_GET['aluno_nome'] : '';
+$modulo_nome = isset($_GET['modulo_nome']) ? $_GET['modulo_nome'] : '';
 $idpreceptor = isset($_SESSION['idusuario']) ? $_SESSION['idusuario'] : null;
 
-if (!$idaluno) {
-    echo "<script>alert('ID do aluno não informado ou inválido.'); location.href='avaliacoes.php';</script>";
+if (!$idaluno || !$id_modulo) {
+    echo "<script>alert('Dados insuficientes.'); location.href='avaliacoes.php';</script>";
     exit();
 }
 
-$queryModulos = "
-    SELECT m.idmodulo, m.nome_modulo 
-    FROM modulos m
-    JOIN modulos_alunos ma ON m.idmodulo = ma.idmodulo
-    WHERE ma.idusuario = ?";
-$stmtModulos = $conn->prepare($queryModulos);
-$stmtModulos->bind_param("i", $idaluno);
-$stmtModulos->execute();
-$resultModulos = $stmtModulos->get_result();
+// Busca módulos disponíveis para este aluno e preceptor
+$modulosDisponiveis = [];
+$sqlMods = "SELECT DISTINCT m.idmodulo, m.nome_modulo,
+                   (SELECT COUNT(*) FROM avaliacoes a WHERE a.idaluno = ? AND a.idpreceptor = ? AND a.idmodulo = m.idmodulo) > 0 AS avaliado
+            FROM horarios h
+            JOIN subgrupos sg ON sg.idsubgrupo = h.idsubgrupo
+            JOIN alunos_subgrupos als ON als.idsubgrupo = sg.idsubgrupo
+            JOIN modulos m ON m.idmodulo = h.idmodulo
+            WHERE h.idpreceptor = ? AND als.idusuario = ?
+            ORDER BY m.nome_modulo";
+$stmtMods = $conn->prepare($sqlMods);
+$stmtMods->bind_param("iiii", $idaluno, $idpreceptor, $idpreceptor, $idaluno);
+$stmtMods->execute();
+$resMods = $stmtMods->get_result();
+while ($rowMod = $resMods->fetch_assoc()) {
+    $modulosDisponiveis[] = $rowMod;
+}
+$stmtMods->close();
 
-$queryPerguntas = "SELECT titulo, descricao FROM perguntas_avaliacoes";
+// Busca perguntas de avaliação
+$queryPerguntas = "SELECT idpergunta, titulo, descricao FROM perguntas_avaliacoes ORDER BY idpergunta";
 $resultPerguntas = $conn->query($queryPerguntas);
+$perguntas = [];
+if ($resultPerguntas) {
+    while ($row = $resultPerguntas->fetch_assoc()) {
+        $perguntas[] = $row;
+    }
+}
 ?>
 
 
@@ -73,51 +92,125 @@ $resultPerguntas = $conn->query($queryPerguntas);
 
 
 <h3>Realizar Avaliação</h3>
-<form method="post" action="processar-avaliacao.php?<?php echo 'idaluno=' . $idaluno . '&idpreceptor=' . $idpreceptor; ?>">
-    <div class="mb-3">
-        <label for="modulo" class="form-label">Módulo</label>
-        <select name="modulo" id="modulo" class="form-select" required>
-            <?php if ($resultModulos->num_rows > 0): ?>
-                <?php while ($rowModulo = $resultModulos->fetch_assoc()): ?>
-                    <option value="<?php echo $rowModulo['idmodulo']; ?>">
-                        <?php echo htmlspecialchars($rowModulo['nome_modulo']); ?>
-                    </option>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <option value="">Aluno não está cadastrado em nenhum módulo</option>
-            <?php endif; ?>
+<hr>
+
+<!-- Informações do aluno -->
+<div class="mb-4">
+    <h5><strong>Aluno:</strong> <?= htmlspecialchars($aluno_nome) ?></h5>
+</div>
+
+<!-- Formulário de Avaliação -->
+<form method="post" action="processar-avaliacao.php" id="formAvaliacao">
+    <!-- Campos ocultos -->
+    <input type="hidden" name="id_aluno" value="<?= $idaluno ?>" />
+    <input type="hidden" name="idpreceptor" value="<?= $idpreceptor ?>" />
+    
+    <!-- Seletor de Módulo -->
+    <div class="mb-4">
+        <label for="selectModulo" class="form-label fw-bold">Módulo:</label>
+        <select id="selectModulo" name="id_modulo" class="form-select" required>
+            <?php foreach ($modulosDisponiveis as $mod): ?>
+                <option value="<?= $mod['idmodulo'] ?>" 
+                        <?= ($mod['idmodulo'] == $id_modulo) ? 'selected' : '' ?>
+                        <?= $mod['avaliado'] ? 'data-avaliado="true"' : '' ?>>
+                    <?= htmlspecialchars($mod['nome_modulo']) ?>
+                    <?= $mod['avaliado'] ? ' (Já Avaliado)' : '' ?>
+                </option>
+            <?php endforeach; ?>
         </select>
+        <div class="form-text">Você pode alterar o módulo antes de enviar a avaliação.</div>
     </div>
 
-    <?php if ($resultPerguntas->num_rows > 0): ?>
-        <?php foreach ($resultPerguntas as $index => $pergunta): ?>
+    <!-- Perguntas Dinâmicas -->
+    <?php if (!empty($perguntas)): ?>
+        <?php foreach ($perguntas as $index => $pergunta): ?>
             <fieldset class="mb-4">
-                <legend><?php echo htmlspecialchars($pergunta['titulo']); ?></legend>
-                <p><?php echo htmlspecialchars($pergunta['descricao']); ?></p>
+                <legend><?= htmlspecialchars($pergunta['titulo']) ?></legend>
+                <p><?= htmlspecialchars($pergunta['descricao']) ?></p>
 
                 <div>
-                    <input type="radio" id="insuficiente_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="4" required>
-                    <label for="insuficiente_<?php echo $index; ?>">Insuficiente</label>
+                    <input type="radio" id="insuficiente_<?= $index ?>" name="pergunta_<?= $pergunta['idpergunta'] ?>" value="4" required>
+                    <label for="insuficiente_<?= $index ?>">Insuficiente</label>
                 </div>
                 <div>
-                    <input type="radio" id="regular_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="6" required>
-                    <label for="regular_<?php echo $index; ?>">Regular</label>
+                    <input type="radio" id="regular_<?= $index ?>" name="pergunta_<?= $pergunta['idpergunta'] ?>" value="6" required>
+                    <label for="regular_<?= $index ?>">Regular</label>
                 </div>
                 <div>
-                    <input type="radio" id="bom_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="8" required>
-                    <label for="bom_<?php echo $index; ?>">Bom</label>
+                    <input type="radio" id="bom_<?= $index ?>" name="pergunta_<?= $pergunta['idpergunta'] ?>" value="8" required>
+                    <label for="bom_<?= $index ?>">Bom</label>
                 </div>
                 <div>
-                    <input type="radio" id="excelente_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="10" required>
-                    <label for="excelente_<?php echo $index; ?>">Excelente</label>
+                    <input type="radio" id="excelente_<?= $index ?>" name="pergunta_<?= $pergunta['idpergunta'] ?>" value="10" required>
+                    <label for="excelente_<?= $index ?>">Excelente</label>
                 </div>
             </fieldset>
         <?php endforeach; ?>
     <?php else: ?>
         <p>Nenhuma pergunta disponível.</p>
     <?php endif; ?>
-    <div class="d-flex justify-content-end">
+    
+    <hr>
+    <!-- Botões de ação -->
+    <div class="d-flex justify-content-end mt-4">
         <a href="avaliacoes.php" class="btn btn-secondary me-2">Voltar</a>
-        <button type="submit" class="btn btn-primary">Enviar Avaliação</button>
+        <button id="btnEnviar" type="submit" class="btn btn-primary">Enviar Avaliação</button>
     </div>
 </form>
+
+<!-- Validação JS -->
+<script>
+    // Alerta se módulo já foi avaliado
+    const selectModulo = document.getElementById('selectModulo');
+    selectModulo.addEventListener('change', function() {
+        const opcaoSelecionada = this.options[this.selectedIndex];
+        if (opcaoSelecionada.dataset.avaliado === 'true') {
+            if (!confirm('Este módulo já foi avaliado. Deseja criar uma nova avaliação?')) {
+                // Retorna para o módulo anterior
+                this.value = '<?= $id_modulo ?>';
+            }
+        }
+    });
+    
+    // Validação do formulário
+    const form = document.querySelector('form');
+    const btn = document.getElementById('btnEnviar');
+    btn.addEventListener('click', function(e){
+        const fieldsets = form.querySelectorAll('fieldset');
+        let valido = true;
+        let primeiroInvalido = null;
+        fieldsets.forEach(fs => {
+            const radios = fs.querySelectorAll('input[type="radio"]');
+            const nomeGrupo = radios.length ? radios[0].name : null;
+            const respondido = nomeGrupo && form.querySelector('input[name="' + nomeGrupo + '"]:checked');
+
+            if (!respondido) {
+                valido = false;
+                if (!primeiroInvalido) primeiroInvalido = fs;
+                fs.classList.add('border', 'border-danger');
+                if (!fs.querySelector('.invalid-feedback')) {
+                    const msg = document.createElement('div');
+                    msg.className = 'invalid-feedback d-block fw-semibold';
+                    msg.innerText = 'Selecione uma opção';
+                    fs.appendChild(msg);
+                }
+            } else {
+                fs.classList.remove('border', 'border-danger');
+                const msg = fs.querySelector('.invalid-feedback');
+                if (msg) msg.remove();
+            }
+
+            radios.forEach(r => r.addEventListener('change', () => {
+                fs.classList.remove('border', 'border-danger');
+                const msg = fs.querySelector('.invalid-feedback');
+                if (msg) msg.remove();
+            }, {once:true}));
+        });
+
+        if (!valido) {
+            e.preventDefault();
+            primeiroInvalido.scrollIntoView({behavior: 'smooth', block: 'center'});
+            primeiroInvalido.focus();
+        }
+    });
+</script>

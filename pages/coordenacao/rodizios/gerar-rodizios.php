@@ -46,12 +46,11 @@
     <input type="hidden" id="modulo3" name="modulo3">
 </div>
 
-                <div class="form-check mt-3">
-    <input class="form-check-input" type="checkbox" name="no_fill_groups" id="no_fill_groups">
-    <label class="form-check-label" for="no_fill_groups">Não preencher grupos</label>
-</div>
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle"></i> Os grupos e subgrupos serão criados vazios. Você poderá alocar os alunos manualmente após a criação.
+                </div>
 
-                <button type="button" class="btn btn-secondary mt-3" onclick="gerarRodizios()">Gerar rodizio</button>
+                <button type="button" class="btn btn-primary mt-3" onclick="gerarRodizios()">Gerar Rodízios</button>
 
             </form>
             <button onclick="history.back()" class="btn btn-secondary mt-3">Voltar</button>

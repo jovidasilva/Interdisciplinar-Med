@@ -9,8 +9,8 @@ if (isset($_POST['periodo']) && isset($_POST['inicio1']) && isset($_POST['fim1']
         ['inicio' => $_POST['inicio3'], 'fim' => $_POST['fim3']]
     ];
 
-    // Receber o valor do checkbox "Não preencher grupos com alunos"
-    $no_fill_groups = isset($_POST['no_fill_groups']) && $_POST['no_fill_groups'] === 'on';
+    // Grupos sempre serão criados vazios (sem alunos)
+    $no_fill_groups = true; // Sempre true - alocação manual
 
     // Verificação de rodízios com as mesmas datas
     $rodizioExistente = false;
@@ -58,25 +58,7 @@ if (isset($_POST['periodo']) && isset($_POST['inicio1']) && isset($_POST['fim1']
         exit();
     }
 
-    // Verificar se todos os módulos têm alunos cadastrados, a menos que o checkbox esteja marcado
-    if (!$no_fill_groups) {
-        $alunosPorModulo = [];
-        foreach ($modulos as $idmodulo) {
-            $query = "SELECT COUNT(idusuario) AS totalAlunos FROM modulos_alunos WHERE idmodulo = ?";
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("i", $idmodulo);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $row = $result->fetch_assoc();
-            $alunosPorModulo[$idmodulo] = $row['totalAlunos'];
-            $stmt->close();
-        }
-
-        if (in_array(0, $alunosPorModulo)) {
-            echo "<script>alert('Todos os três módulos devem ter alunos cadastrados.'); history.back();</script>";
-            exit();
-        }
-    }
+    // Validação de alunos removida - grupos serão criados vazios
 
     // Verificação de módulos já existentes em rodízios
     $modulosExistentes = [];
@@ -122,30 +104,7 @@ if (isset($_POST['periodo']) && isset($_POST['inicio1']) && isset($_POST['fim1']
             $idsubgrupo = $stmtSubgrupo->insert_id;
             $stmtSubgrupo->close();
 
-            // Somente preenche os alunos se o checkbox "no_fill_groups" não estiver marcado
-            if (!$no_fill_groups) {
-                $alunos = [];
-                $queryAlunos = "SELECT idusuario FROM modulos_alunos WHERE idmodulo = ?";
-                $stmt = $conn->prepare($queryAlunos);
-                $stmt->bind_param("i", $modulos[$i]);
-                $stmt->execute();
-                $resultAlunos = $stmt->get_result();
-                while ($row = $resultAlunos->fetch_assoc()) {
-                    $alunos[] = $row['idusuario'];
-                }
-                $stmt->close();
-
-                shuffle($alunos);
-                $alunosPorSubgrupo = array_chunk($alunos, 4);
-                $alunosAtual = isset($alunosPorSubgrupo[$j]) ? $alunosPorSubgrupo[$j] : [];
-
-                foreach ($alunosAtual as $idaluno) {
-                    $stmtAlunoSubgrupo = $conn->prepare("INSERT INTO alunos_subgrupos (idusuario, idsubgrupo) VALUES (?, ?)");
-                    $stmtAlunoSubgrupo->bind_param("ii", $idaluno, $idsubgrupo);
-                    $stmtAlunoSubgrupo->execute();
-                    $stmtAlunoSubgrupo->close();
-                }
-            }
+            // Subgrupos criados vazios - alocação manual de alunos será feita posteriormente
         }
     }
 

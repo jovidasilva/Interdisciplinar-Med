@@ -82,23 +82,37 @@ while ($row = $resultGrupos->fetch_assoc()) {
                                                     <tr>
                                                         <th>Subgrupo</th>
                                                         <th>Período</th>
-                                                        <th>Ação</th>
+                                                        <th>Total Alunos</th>
+                                                        <th>Ações</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <?php foreach ($subgrupos as $subgrupoNome => $subgrupo): ?>
+                                                    <?php foreach ($subgrupos as $subgrupoNome => $subgrupo): 
+                                                        // Conta alunos no subgrupo
+                                                        $stmtCount = $conn->prepare("SELECT COUNT(*) FROM alunos_subgrupos WHERE idsubgrupo = ?");
+                                                        $stmtCount->bind_param("i", $subgrupo['idsubgrupo']);
+                                                        $stmtCount->execute();
+                                                        $stmtCount->bind_result($totalAlunos);
+                                                        $stmtCount->fetch();
+                                                        $stmtCount->close();
+                                                    ?>
                                                         <tr>
                                                             <td><?= htmlspecialchars($subgrupoNome) ?></td>
                                                             <td><?= htmlspecialchars($subgrupo['periodo']) ?></td>
+                                                            <td><span class="badge bg-primary"><?= $totalAlunos ?></span></td>
                                                             <td>
-                                                                <form method="POST" action="ver-alunos.php">
-                                                                    <input type="hidden" name="idsubgrupo"
-                                                                        value="<?= $subgrupo['idsubgrupo'] ?>">
-                                                                    <input type="hidden" name="nome_subgrupo"
-                                                                        value="<?= $subgrupoNome ?>">
-                                                                    <button type="submit" class="btn btn-info">Ver
-                                                                        Alunos</button>
-                                                                </form>
+                                                                <div class="btn-group" role="group">
+                                                                    <a href="alocar-alunos.php?idsubgrupo=<?= $subgrupo['idsubgrupo'] ?>" class="btn btn-sm btn-success">
+                                                                        <i class="bi bi-person-plus"></i> Alocar Alunos
+                                                                    </a>
+                                                                    <form method="POST" action="ver-alunos.php" class="d-inline">
+                                                                        <input type="hidden" name="idsubgrupo" value="<?= $subgrupo['idsubgrupo'] ?>">
+                                                                        <input type="hidden" name="nome_subgrupo" value="<?= $subgrupoNome ?>">
+                                                                        <button type="submit" class="btn btn-sm btn-info">
+                                                                            <i class="bi bi-eye"></i> Ver Alunos
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     <?php endforeach; ?>

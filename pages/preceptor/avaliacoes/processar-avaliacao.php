@@ -1,78 +1,91 @@
 <?php
+session_start();
 require_once '../../../cfg/config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-    $idaluno = isset($_GET['idaluno']) ? intval($_GET['idaluno']) : null;
-    if (!$idaluno) {
-        echo "<script>alert('Erro: Aluno não encontrado.'); location.href='realizar-avaliacao.php';</script>";
+    $idaluno = isset($_POST['id_aluno']) ? intval($_POST['id_aluno']) : null;
+    $idmodulo = isset($_POST['id_modulo']) ? intval($_POST['id_modulo']) : null;
+    $idpreceptor = isset($_POST['idpreceptor']) ? intval($_POST['idpreceptor']) : ($_SESSION['idusuario'] ?? null);
+    
+    if (!$idaluno || !$idmodulo || !$idpreceptor) {
+        echo "<script>alert('Erro: Dados insuficientes.'); location.href='avaliacoes.php';</script>";
         exit();
     }
 
-    $idpreceptor = isset($_GET['idpreceptor']) ? intval($_GET['idpreceptor']) : null;
-    $idmodulo = isset($_POST['modulo']) ? intval($_POST['modulo']) : null;
-    if (!$idmodulo) {
-        echo "<script>alert('Erro: Módulo não selecionado.'); location.href='realizar-avaliacao.php';</script>";
-        exit();
-    }
-
-    $total_pontuacao = 0;
-    $total_perguntas = 0;
-
+    // Calcula média das respostas (igual ao Java)
+    $soma = 0;
+    $qtd = 0;
+    
     foreach ($_POST as $key => $value) {
         if (strpos($key, 'pergunta_') === 0) {
-            $total_pontuacao += intval($value);
-            $total_perguntas++;
+            $soma += doubleval($value);
+            $qtd++;
         }
     }
 
-    $media = $total_perguntas > 0 ? $total_pontuacao / $total_perguntas : 0;
-    $data_avaliacao = date('Y-m-d H:i:s');
+    $media = $qtd > 0 ? $soma / $qtd : 0;
+    
+    // Verifica se já existe avaliação para este aluno/preceptor/módulo
+    $checkQuery = "SELECT idavaliacao FROM avaliacoes WHERE idaluno = ? AND idpreceptor = ? AND idmodulo = ?";
+    $stmtCheck = $conn->prepare($checkQuery);
+    $stmtCheck->bind_param("iii", $idaluno, $idpreceptor, $idmodulo);
+    $stmtCheck->execute();
+    $stmtCheck->bind_result($idavaliacaoExistente);
+    $avaliacaoExiste = $stmtCheck->fetch();
+    $stmtCheck->close();
+    
+    if ($avaliacaoExiste) {
+        // Atualiza avaliação existente
+        $query = "UPDATE avaliacoes SET nota = ?, data_avaliacao = NOW() WHERE idavaliacao = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("di", $media, $idavaliacaoExistente);
+        $stmt->execute();
+        $stmt->close();
+        $idavaliacao = $idavaliacaoExistente;
+        $mensagem = 'Avaliação atualizada com sucesso!';
+    } else {
+        // Insere nova avaliação
+        $query = "INSERT INTO avaliacoes (idaluno, idpreceptor, idmodulo, nota, data_avaliacao) VALUES (?, ?, ?, ?, NOW())";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("iiid", $idaluno, $idpreceptor, $idmodulo, $media);
+        $stmt->execute();
+        $idavaliacao = $stmt->insert_id;
+        $stmt->close();
+        $mensagem = 'Avaliação realizada com sucesso!';
+    }
 
-    // Inserir na tabela de avaliacoes
-    $query = "INSERT INTO avaliacoes (nota, data_avaliacao, idaluno, idpreceptor, idmodulo) VALUES ( ?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("dsiii", $media, $data_avaliacao, $idaluno, $idpreceptor, $idmodulo);
-    $stmt->execute();
-    $idavaliacao = $stmt->insert_id;
-
-    if ($idavaliacao) {
-        // Inserir as respostas
+    // Salvar/atualizar respostas individuais (se houver tabela respostas_avaliacoes)
+    if ($idavaliacao && $conn->query("SHOW TABLES LIKE 'respostas_avaliacoes'")->num_rows > 0) {
+        // Se foi atualização, remove respostas antigas
+        if ($avaliacaoExiste) {
+            $stmtDel = $conn->prepare("DELETE FROM respostas_avaliacoes WHERE idavaliacao = ?");
+            $stmtDel->bind_param("i", $idavaliacao);
+            $stmtDel->execute();
+            $stmtDel->close();
+        }
+        
+        // Insere novas respostas
         foreach ($_POST as $key => $value) {
             if (strpos($key, 'pergunta_') === 0) {
                 $idpergunta = intval(str_replace('pergunta_', '', $key));
-                $resposta = intval($value);
-
-                if ($idpergunta > 0) {  // Ignora IDs inválidos
-                    // Verificar se a pergunta existe na tabela perguntas_avaliacoes
-                    $checkQuery = "SELECT COUNT(*) FROM perguntas_avaliacoes WHERE idpergunta = ?";
-                    $checkStmt = $conn->prepare($checkQuery);
-                    $checkStmt->bind_param("i", $idpergunta);
-                    $checkStmt->execute();
-                    $checkStmt->bind_result($count);
-                    $checkStmt->fetch();
-                    $checkStmt->close();
-
-                    if ($count > 0) {  // Se a pergunta existir
-                        $stmtResposta = $conn->prepare("INSERT INTO avaliacoes_respostas (idavaliacao, idpergunta, resposta) VALUES (?, ?, ?)");
-                        $stmtResposta->bind_param("iii", $idavaliacao, $idpergunta, $resposta);
-                        $stmtResposta->execute();
-                        $stmtResposta->close();
-                    } else {
-                        echo "<script>alert('Erro: Pergunta de ID $idpergunta não encontrada. Resposta não registrada.');</script>";
-                    }
+                $valorResposta = intval($value);
+                
+                if ($idpergunta > 0) {
+                    $stmtResp = $conn->prepare("INSERT INTO respostas_avaliacoes (idavaliacao, idpergunta, valor_resposta) VALUES (?, ?, ?)");
+                    $stmtResp->bind_param("iii", $idavaliacao, $idpergunta, $valorResposta);
+                    $stmtResp->execute();
+                    $stmtResp->close();
                 }
             }
         }
     }
 
-    // Verificar se a inserção da avaliação foi bem-sucedida
-    if ($stmt->affected_rows > 0) {
-        echo "<script>alert('Avaliação registrada com sucesso!'); location.href='avaliacoes.php';</script>";
-    } else {
-        echo "<script>alert('Erro ao registrar a avaliação.'); location.href='avaliacoes.php';</script>";
-    }
-
-    $stmt->close();
+    // Redireciona com mensagem de sucesso
+    echo "<script>alert('" . $mensagem . "'); location.href='avaliacoes.php';</script>";
     $conn->close();
+    exit();
+} else {
+    echo "<script>alert('Método inválido.'); location.href='avaliacoes.php';</script>";
+    exit();
 }
