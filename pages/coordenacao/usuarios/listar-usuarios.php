@@ -1,3 +1,15 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -54,7 +66,8 @@
     $result = $conn->query($sql);
 
     if (!$result) {
-        die("Erro na consulta SQL: " . $conn->error);
+        error_log("Erro na consulta SQL (listar-usuarios.php): " . $conn->error);
+        die("Erro ao processar a consulta. Tente novamente mais tarde.");
     }
 
     ?>

@@ -66,7 +66,7 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
                 <select name="unidade" id="unidade" class="form-select">
                     <option value="">Todas</option>
                     <?php while ($row = $unidades->fetch_assoc()): ?>
-                        <option value="<?php echo $row['nome_unidade']; ?>" <?php if ($filterUnidade == $row['nome_unidade']) echo 'selected'; ?>>
+                        <option value="<?php echo htmlspecialchars($row['nome_unidade']); ?>" <?php if ($filterUnidade == $row['nome_unidade']) echo 'selected'; ?>>
                             <?php echo htmlspecialchars($row['nome_unidade']); ?>
                         </option>
                     <?php endwhile; ?>
@@ -77,7 +77,7 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
                 <select name="subgrupo" id="subgrupo" class="form-select">
                     <option value="">Todos</option>
                     <?php while ($row = $subgrupos->fetch_assoc()): ?>
-                        <option value="<?php echo $row['nome_subgrupo']; ?>" <?php if ($filterSubgrupo == $row['nome_subgrupo']) echo 'selected'; ?>>
+                        <option value="<?php echo htmlspecialchars($row['nome_subgrupo']); ?>" <?php if ($filterSubgrupo == $row['nome_subgrupo']) echo 'selected'; ?>>
                             <?php echo htmlspecialchars($row['nome_subgrupo']); ?>
                         </option>
                     <?php endwhile; ?>
@@ -88,7 +88,7 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
                 <select name="modulo" id="modulo" class="form-select">
                     <option value="">Todos</option>
                     <?php while ($row = $modulos->fetch_assoc()): ?>
-                        <option value="<?php echo $row['nome_modulo']; ?>" <?php if ($filterModulo == $row['nome_modulo']) echo 'selected'; ?>>
+                        <option value="<?php echo htmlspecialchars($row['nome_modulo']); ?>" <?php if ($filterModulo == $row['nome_modulo']) echo 'selected'; ?>>
                             <?php echo htmlspecialchars($row['nome_modulo']); ?>
                         </option>
                     <?php endwhile; ?>
@@ -99,7 +99,7 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
                 <select name="preceptor" id="preceptor" class="form-select">
                     <option value="">Todos</option>
                     <?php while ($row = $preceptores->fetch_assoc()): ?>
-                        <option value="<?php echo $row['nome']; ?>" <?php if ($filterPreceptor == $row['nome']) echo 'selected'; ?>>
+                        <option value="<?php echo htmlspecialchars($row['nome']); ?>" <?php if ($filterPreceptor == $row['nome']) echo 'selected'; ?>>
                             <?php echo htmlspecialchars($row['nome']); ?>
                         </option>
                     <?php endwhile; ?>
@@ -170,17 +170,17 @@ $preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE
             
             while ($row = mysqli_fetch_assoc($result)) {
                 echo '<tr>
-                        <td>' . $row['nome_unidade'] . '</td>
-                        <td>' . $row['nome_departamento'] . '</td>
-                        <td>' . $row['nome_modulo'] . '</td>
-                        <td>' . $row['preceptor_nome'] . '</td>
-                        <td>' . $row['dia_semana'] . '</td>
-                        <td>' . $row['hora_inicio'] . '</td>
-                        <td>' . $row['hora_fim'] . '</td>
-                        <td>' . $row['nome_subgrupo'] . '</td>
+                        <td>' . htmlspecialchars($row['nome_unidade']) . '</td>
+                        <td>' . htmlspecialchars($row['nome_departamento']) . '</td>
+                        <td>' . htmlspecialchars($row['nome_modulo']) . '</td>
+                        <td>' . htmlspecialchars($row['preceptor_nome']) . '</td>
+                        <td>' . htmlspecialchars($row['dia_semana']) . '</td>
+                        <td>' . htmlspecialchars($row['hora_inicio']) . '</td>
+                        <td>' . htmlspecialchars($row['hora_fim']) . '</td>
+                        <td>' . htmlspecialchars($row['nome_subgrupo']) . '</td>
                         <td>
-                            <a href="preencher-horario.php?id=' . $row['idhorario'] . '" class="btn btn-primary btn-sm">Editar</a>
-                            <a href="excluir-horario.php?id=' . $row['idhorario'] . '" class="btn btn-danger btn-sm" onclick="return confirm(\'Tem certeza que deseja excluir este horário?\')">Excluir</a>
+                            <a href="preencher-horario.php?id=' . urlencode($row['idhorario']) . '" class="btn btn-primary btn-sm">Editar</a>
+                            <a href="excluir-horario.php?id=' . urlencode($row['idhorario']) . '" class="btn btn-danger btn-sm" onclick="return confirm(\'Tem certeza que deseja excluir este horário?\')">Excluir</a>
                         </td>
                       </tr>';
             }

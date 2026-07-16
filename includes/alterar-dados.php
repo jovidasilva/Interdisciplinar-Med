@@ -4,6 +4,11 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 include('../cfg/config.php');
 
+if (empty($_SESSION['login'])) {
+    header('Location: ../index.php');
+    exit();
+}
+
 function validar_email($email) {
     return filter_var($email, FILTER_VALIDATE_EMAIL) && preg_match('/@.+\./', $email);
 }
@@ -85,6 +90,14 @@ function alterar_senha($conn, $idusuario, $senha_antiga, $senha_nova) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $idusuario = intval($_POST['idusuario']);
     $action = $_POST['action'];
+
+    // Checagem de autorização (IDOR): só permite alterar os próprios dados,
+    // a menos que o usuário logado seja da coordenação (tipo 2 ou 3).
+    if ($idusuario !== intval($_SESSION['idusuario']) && !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+        $_SESSION['msg'] = 'Você não tem permissão para alterar este usuário.';
+        header('Location: perfil.php');
+        exit();
+    }
 
     $conn->begin_transaction();
     try {

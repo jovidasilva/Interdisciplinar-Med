@@ -1,7 +1,7 @@
 <?php
 session_start();
-if (empty($_SESSION["login"])) {
-    echo "<script>location.href='../../index.php';</script>";
+if (empty($_SESSION["login"]) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    echo "<script>location.href='../../../index.php';</script>";
     exit();
 }
 

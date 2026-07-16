@@ -1,6 +1,16 @@
 <?php
-include('../../../cfg/config.php');
-
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
+<?php
 $queryGrupos = "SELECT g.nome_grupo, s.nome_subgrupo, r.periodo, r.inicio, r.fim, m.nome_modulo, s.idsubgrupo 
                 FROM grupos g 
                 JOIN subgrupos s ON g.idgrupo = s.idgrupo 

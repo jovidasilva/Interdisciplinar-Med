@@ -1,6 +1,16 @@
 <?php
-include('../../../cfg/config.php');
-
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
+<?php
 if (isset($_GET['periodo'])) {
     $periodo = $_GET['periodo'];
 
@@ -24,7 +34,8 @@ if (isset($_GET['periodo'])) {
 
         $stmt->close();
     } else {
-        echo '<p>Erro ao preparar a consulta: ' . $conn->error . '</p>';
+        error_log("Erro ao preparar a consulta (modulos-rodizios.php): " . $conn->error);
+        echo '<p>Erro ao processar a consulta. Tente novamente mais tarde.</p>';
     }
 }
 

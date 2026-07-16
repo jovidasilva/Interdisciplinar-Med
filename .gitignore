@@ -1,0 +1,14 @@
+# Ambiente
+.env
+
+# Dependências (instaladas via composer install)
+/vendor/
+
+# Sistema operacional / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log

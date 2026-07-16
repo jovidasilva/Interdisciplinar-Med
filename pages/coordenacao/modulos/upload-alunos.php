@@ -1,7 +1,16 @@
 <?php
-include('../../../cfg/config.php');
-
-
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
+<?php
 $mensagem = '';
 $alertType = '';
 
@@ -53,11 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && isset($_P
 
 
         if (!empty($alunosInscritos)) {
-            $mensagem .= "Alunos associados com sucesso:<br><ul><li>" . implode("</li><li>", $alunosInscritos) . "</li></ul>";
+            $alunosInscritosSeguro = array_map('htmlspecialchars', $alunosInscritos);
+            $mensagem .= "Alunos associados com sucesso:<br><ul><li>" . implode("</li><li>", $alunosInscritosSeguro) . "</li></ul>";
             $alertType = 'success'; // Sucesso
         }
         if (!empty($alunosNaoInscritos)) {
-            $mensagem .= "Os seguintes alunos já estão associados:<br><ul><li>" . implode("</li><li>", $alunosNaoInscritos) . "</li></ul>";
+            $alunosNaoInscritosSeguro = array_map('htmlspecialchars', $alunosNaoInscritos);
+            $mensagem .= "Os seguintes alunos já estão associados:<br><ul><li>" . implode("</li><li>", $alunosNaoInscritosSeguro) . "</li></ul>";
             $alertType = 'warning'; // Alerta de aviso
         }
     } else {
@@ -98,8 +109,8 @@ $conn->close();
 <?php if (!empty($mensagem)): ?>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        const alertType = "<?php echo $alertType; ?>";
-        const mensagem = "<?php echo addslashes($mensagem); ?>";
+        const alertType = <?php echo json_encode($alertType, JSON_HEX_TAG); ?>;
+        const mensagem = <?php echo json_encode($mensagem, JSON_HEX_TAG); ?>;
 
         if (alertType === 'success') {
             Swal.fire({

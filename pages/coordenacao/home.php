@@ -26,7 +26,93 @@ include('../../cfg/config.php');
         <?php include('../../includes/menu-lateral-coordenacao.php'); ?>
     </header>
     <main>
-
+        <div class="container mt-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2>Bem-vindo(a), <?php echo htmlspecialchars($_SESSION['nome']); ?>!</h2>
+                    <p class="text-muted mb-0">Acesse rapidamente as principais áreas de coordenação.</p>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="usuarios/usuarios.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-person-check" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Usuários</h5>
+                                <p class="text-muted mb-0">Gerencie alunos, preceptores e coordenadores.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="modulos/modulos.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-grid" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Módulos</h5>
+                                <p class="text-muted mb-0">Gerencie módulos e associações.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="unidades/unidades.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-building" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Unidades</h5>
+                                <p class="text-muted mb-0">Gerencie unidades e departamentos.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="rodizios/rodizios.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-calendar" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Rodízios</h5>
+                                <p class="text-muted mb-0">Gerencie rodízios dos alunos.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="horarios/horarios.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-alarm" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Horários</h5>
+                                <p class="text-muted mb-0">Gerencie horários de atividades.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="avaliacoes/avaliacoes.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-journal-text" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Avaliações</h5>
+                                <p class="text-muted mb-0">Gerencie avaliações e perguntas.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="relatorios.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-file-earmark-text" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Relatórios</h5>
+                                <p class="text-muted mb-0">Consulte relatórios gerais.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
     </main>
     <footer>
         <div class="card footer-home rounded-0">

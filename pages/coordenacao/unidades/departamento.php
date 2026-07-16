@@ -1,10 +1,14 @@
 <?php
-session_start();
-if (empty($_SESSION["login"])) {
-    echo "<script>location.href='../../../index.php';</script>";
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
     exit();
 }
-include('../../../cfg/config.php');
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
 
 $idunidade = isset($_GET['idunidade']) ? intval($_GET['idunidade']) : 0;
 
@@ -14,7 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nome_departamento']))
     if ($conn->query($sql) === TRUE) {
         echo "<script>alert('Departamento adicionado com sucesso!');</script>";
     } else {
-        echo "<script>alert('Erro ao adicionar departamento: " . $conn->error . "');</script>";
+        error_log("Erro ao adicionar departamento (departamento.php): " . $conn->error);
+        echo "<script>alert('Erro ao adicionar departamento. Tente novamente mais tarde.');</script>";
     }
 }
 
@@ -24,7 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['iddepartamento'])) {
     if ($conn->query($sql) === TRUE) {
         echo "<script>alert('Departamento removido com sucesso!');</script>";
     } else {
-        echo "<script>alert('Erro ao remover departamento: " . $conn->error . "');</script>";
+        error_log("Erro ao remover departamento (departamento.php): " . $conn->error);
+        echo "<script>alert('Erro ao remover departamento. Tente novamente mais tarde.');</script>";
     }
 }
 
@@ -36,7 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idmodulo']) && isset(
     if ($conn->query($sql) === TRUE) {
         echo "<script>alert('Módulo associado ao departamento com sucesso!');</script>";
     } else {
-        echo "<script>alert('Erro ao associar módulo ao departamento: " . $conn->error . "');</script>";
+        error_log("Erro ao associar módulo ao departamento (departamento.php): " . $conn->error);
+        echo "<script>alert('Erro ao associar módulo ao departamento. Tente novamente mais tarde.');</script>";
     }
 }
 

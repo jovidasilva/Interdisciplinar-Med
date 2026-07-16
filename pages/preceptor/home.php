@@ -24,7 +24,60 @@ include('../../cfg/config.php');
         <?php include('../../includes/menu-lateral-preceptor.php'); ?>
     </header>
     <main>
-
+        <div class="container mt-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2>Bem-vindo(a), <?php echo htmlspecialchars($_SESSION['nome']); ?>!</h2>
+                    <p class="text-muted mb-0">Acesse rapidamente as principais áreas do internato.</p>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="horarios.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-alarm" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Horários</h5>
+                                <p class="text-muted mb-0">Consulte seus horários.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="grupos.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Grupos</h5>
+                                <p class="text-muted mb-0">Veja os grupos de alunos.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="rodizios.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-calendar" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Rodízios</h5>
+                                <p class="text-muted mb-0">Acompanhe os rodízios.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="avaliacoes/avaliacoes.php" class="text-decoration-none">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-journal-text" style="font-size: 2rem;"></i>
+                                <h5 class="mt-2">Avaliações</h5>
+                                <p class="text-muted mb-0">Realize e consulte avaliações.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
     </main>
     <footer>
         <div class="card footer-home rounded-0">

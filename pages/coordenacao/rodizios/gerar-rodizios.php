@@ -1,3 +1,15 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
 <div class="container mt-3">
     <div class="body">
         <div class="card-body">
@@ -98,15 +110,15 @@
 
         var modulosArray = Array.from(modulos).map(modulo => modulo.dataset.idmodulo);
 
-
-        document.getElementById('modulo1').value = modulosArray[0];
-        document.getElementById('modulo2').value = modulosArray[1];
-        document.getElementById('modulo3').value = modulosArray[2];
-
-        document.getElementById('modulo1').value = modulosArray[1];
-        document.getElementById('modulo2').value = modulosArray[2];
-        document.getElementById('modulo3').value = modulosArray[0];
-
+        // TODO: revisar lógica de rotação.
+        // As três atribuições anteriores (0,1,2 / 1,2,0 / 2,0,1) eram feitas em sequência
+        // nos mesmos campos, então apenas a última tinha efeito - as duas primeiras eram
+        // código morto. Além disso, processar-rodizios.php nem sequer lê os campos
+        // modulo1/modulo2/modulo3 do POST: o backend recalcula sua própria rotação de
+        // módulos (array $rodizioModulos) a partir da lista de módulos do período. Por isso,
+        // esses campos hoje não têm efeito algum no resultado final. Mantendo apenas a
+        // última atribuição (que era a única realmente aplicada) até que a rotação seja
+        // revisada.
         document.getElementById('modulo1').value = modulosArray[2];
         document.getElementById('modulo2').value = modulosArray[0];
         document.getElementById('modulo3').value = modulosArray[1];

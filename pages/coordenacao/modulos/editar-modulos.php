@@ -1,10 +1,23 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
 <h1>Editar Módulo</h1>
 <?php
 $sql = "SELECT * FROM modulos WHERE idmodulo=" . intval($_REQUEST['idmodulo']);
 $res = $conn->query($sql);
 
 if (!$res) {
-    die("Erro na consulta: " . $conn->error);
+    error_log("Erro na consulta (editar-modulos.php): " . $conn->error);
+    die("Erro ao processar a consulta. Tente novamente mais tarde.");
 }
 
 $row = $res->fetch_object();

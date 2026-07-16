@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (empty($_SESSION["login"])) {
+if (empty($_SESSION["login"]) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
     echo "<script>location.href='../../index.php';</script>";
     exit();
 }
@@ -57,7 +57,8 @@ include('../../cfg/config.php');
                             $res = $conn->query($sql);
 
                             if (!$res) {
-                                die("Erro na consulta: " . $conn->error);
+                                error_log("Erro na consulta (listar-aluno.php): " . $conn->error);
+                                die("Erro ao processar a consulta. Tente novamente mais tarde.");
                             }
 
                             $qtd = $res->num_rows;

@@ -1,5 +1,16 @@
 <?php
-require_once '../../../cfg/config.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [1], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
+<?php
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
@@ -9,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         exit();
     }
 
-    $idpreceptor = isset($_GET['idpreceptor']) ? intval($_GET['idpreceptor']) : null;
+    // idpreceptor sempre vem da sessão (não do cliente) para evitar falsificação de autoria.
+    $idpreceptor = isset($_SESSION['idusuario']) ? intval($_SESSION['idusuario']) : null;
     $idmodulo = isset($_POST['modulo']) ? intval($_POST['modulo']) : null;
     if (!$idmodulo) {
         echo "<script>alert('Erro: Módulo não selecionado.'); location.href='realizar-avaliacao.php';</script>";

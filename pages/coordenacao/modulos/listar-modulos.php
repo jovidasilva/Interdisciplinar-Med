@@ -1,3 +1,15 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
+    exit();
+}
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
+?>
 <div class="container mt-3">
     <div class="card">
         <div class="card-body">
@@ -22,7 +34,8 @@
                     $res = $conn->query($sql);
 
                     if (!$res) {
-                        die("Erro na consulta: " . $conn->error);
+                        error_log("Erro na consulta (listar-modulos.php): " . $conn->error);
+                        die("Erro ao processar a consulta. Tente novamente mais tarde.");
                     }
 
                     $qtd = $res->num_rows;
@@ -50,7 +63,7 @@
                             $stmtCount->close();
                         }
                     } else {
-                        echo "<tr><td colspan='4'>Nenhum módulo encontrado.</td></tr>"; 
+                        echo "<tr><td colspan='4'>Nenhum módulo encontrado.</td></tr>";
                     }
                     ?>
                 </tbody>

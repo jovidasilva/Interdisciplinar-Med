@@ -1,10 +1,14 @@
 <?php
-session_start();
-if (empty($_SESSION["login"])) {
-    echo "<script>location.href='../../../index.php';</script>";
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    header('Location: ' . str_repeat('../', 3) . 'index.php');
     exit();
 }
-include('../../../cfg/config.php');
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
 
 $iddepartamento = isset($_GET['iddepartamento']) ? intval($_GET['iddepartamento']) : 0;
 $idunidade = isset($_GET['idunidade']) ? intval($_GET['idunidade']) : 0;

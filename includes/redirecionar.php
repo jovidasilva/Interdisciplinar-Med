@@ -18,4 +18,3 @@ if (isset($_SESSION["tipo"])) {
     echo "<script>alert('Login expirado!');location.href='" . BASE_URL . "/pages/coordenacao/home.php';</script>";
     exit();
 }
-var_dump($tipo);

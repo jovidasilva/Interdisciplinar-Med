@@ -1,14 +1,25 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) {
+if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-include('../../../cfg/config.php');
+if (!isset($conn)) {
+    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+}
 
 if (empty($_SESSION["login"])) {
     echo json_encode([
         "success" => false,
         "message" => "Usuário não autenticado. Redirecionando para a página de login.",
-        "redirect" => "../../index.php"
+        "redirect" => str_repeat('../', 3) . "index.php"
+    ]);
+    exit();
+}
+
+if (!in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Acesso não autorizado.",
+        "redirect" => str_repeat('../', 3) . "index.php"
     ]);
     exit();
 }
@@ -259,23 +270,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php
                     // Resetar o ponteiro do resultado para reutilizá-lo
                     mysqli_data_seek($resPreceptores, 0);
-                    
+
                     $preceptoresNaoAssociados = [];
                     while ($preceptor = $resPreceptores->fetch_assoc()) {
                         if (is_null($preceptor['idunidade'])) {
                             $preceptoresNaoAssociados[] = $preceptor;
                         }
                     }
-                    if (count($preceptoresNaoAssociados) > 0): ?>
+                    ?>
+                    <?php if (count($preceptoresNaoAssociados) > 0): ?>
                         <div class="form-check">
                             <input type="checkbox" id="selectAllNaoAssociadosPreceptores" class="form-check-input" onchange="toggleCheckboxes(this, 'preceptor-nao-associado')">
                             <label for="selectAllNaoAssociadosPreceptores" class="form-check-label">Selecionar Todos</label>
                         </div>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" onsubmit="submitForm(event, this)">
-                            <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
-                            <input type="hidden" name="acao" value="associar">
+                    <?php endif; ?>
+                </div>
+                <div class="card-body">
+                    <form method="POST" onsubmit="submitForm(event, this)">
+                        <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
+                        <input type="hidden" name="acao" value="associar">
+                        <?php if (count($preceptoresNaoAssociados) > 0): ?>
                             <?php foreach ($preceptoresNaoAssociados as $preceptor): ?>
                                 <div class="form-check">
                                     <input type="checkbox" name="preceptores[]" value="<?php echo $preceptor['idusuario']; ?>" class="form-check-input preceptor-nao-associado">
@@ -286,9 +300,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php else: ?>
                             <p>Não há nenhum preceptor desassociado no momento.</p>
                         <?php endif; ?>
-                        </form>
-                    </div>
+                    </form>
                 </div>
+            </div>
 
                 <!-- Preceptores Associados -->
                 <div class="card">
