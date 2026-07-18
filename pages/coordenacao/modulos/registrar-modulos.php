@@ -9,9 +9,11 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <h1>Cadastrar novo módulo</h1>
 <form action="acoes-modulos.php" method="POST">
+    <?php echo csrf_field(); ?>
     <input type="hidden" name="acao" value="cadastrar">
     <div class="mb-3">
         <label>Nome do módulo</label>

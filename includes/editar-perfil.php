@@ -2,7 +2,8 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
-include('../cfg/config.php');
+require_once __DIR__ . '/../cfg/config.php';
+require_once __DIR__ . '/csrf.php';
 
 if (empty($_SESSION['login'])) {
     echo "<script>location.href='../../index.php';</script>";
@@ -40,6 +41,7 @@ unset($_SESSION['form_data']);
     <?php endif; ?>
 
     <form action="editar-usuario.php" method="POST">
+        <?php echo csrf_field(); ?>
         <div class="mb-3">
             <label for="nome" class="form-label">Nome</label>
             <input type="text" class="form-control" id="nome" value="<?php echo htmlspecialchars($user['nome']); ?>" readonly>

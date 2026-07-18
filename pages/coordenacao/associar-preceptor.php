@@ -1,6 +1,7 @@
 <?php
 session_start();
 include('../../cfg/config.php');
+require_once __DIR__ . '/../../includes/csrf.php';
 
 if (empty($_SESSION["login"]) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
     echo "<script>location.href='../../index.php';</script>";
@@ -15,6 +16,8 @@ $sqlPreceptores = "SELECT u.*, un.idunidade, un.nome_unidade FROM usuarios u
 $resPreceptores = $conn->query($sqlPreceptores);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify_or_die();
+
     $idPreceptor = $_POST['idPreceptor'] ?? null;
     $acao = $_POST['acao'] ?? '';
     $modulosSelecionados = $_POST['modulos'] ?? [];
@@ -79,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['idPreceptor'])) {
     <title>Associar Preceptores</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../css/style.css">
+    <link rel="stylesheet" href="../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
     <style>
         .container-card {
             display: flex;
@@ -160,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['idPreceptor'])) {
                     </div>
                     <div class="card-body">
                         <form method="POST" id="form-modulos">
+                            <?php echo csrf_field(); ?>
                             <input type="hidden" name="acao" value="associar-modulos">
                             <input type="hidden" name="idPreceptor" id="idPreceptor">
                             <div id="modulos-container">

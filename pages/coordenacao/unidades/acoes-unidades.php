@@ -9,10 +9,12 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 switch ($_REQUEST['acao']) {
     case 'cadastrar':
+        csrf_verify_or_die();
         if (!empty($_POST['nome_unidade']) && !empty($_POST['endereco_unidade'])) {
             $nome_unidade = $conn->real_escape_string($_POST['nome_unidade']);
             $endereco_unidade = $conn->real_escape_string($_POST['endereco_unidade']);
@@ -29,6 +31,7 @@ switch ($_REQUEST['acao']) {
         }
         break;
     case 'editar':
+        csrf_verify_or_die();
         $idunidade = intval($_POST['idunidade']);
         $nome_unidade = $conn->real_escape_string($_POST['nome_unidade']);
         $endereco_unidade = $conn->real_escape_string($_POST['endereco_unidade']);

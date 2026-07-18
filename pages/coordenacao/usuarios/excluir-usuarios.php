@@ -9,9 +9,12 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['usuarios'])) {
+    csrf_verify_or_die();
+
     $usuarios = $_POST['usuarios'];
 
     $placeholders = implode(',', array_fill(0, count($usuarios), '?'));

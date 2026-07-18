@@ -5,6 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 
 if (empty($_SESSION["login"])) {
     echo json_encode([
@@ -61,6 +62,8 @@ if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {
 
 // Associar ou desassociar preceptores e módulos via AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify_or_die();
+
     $response = ["success" => false, "message" => ""];
     $preceptoresSelecionados = $_POST['preceptores'] ?? [];
     $modulosSelecionados = $_POST['modulos'] ?? [];
@@ -122,75 +125,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="pt-br">
+<style>
+    .container-card {
+        display: flex;
+        gap: 20px;
+    }
 
-<head>
-    <meta charset="UTF-8">
-    <title>Visualizar Unidade</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css">
-    <style>
-        body {
-            overflow-y: hidden;
-        }
+    .card {
+        width: 800px;
+        padding: 10px;
+        margin: 10px;
+        overflow-y: auto;
+        max-height: 650px;
+    }
+</style>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
+        const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
+        checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
+    }
 
-        .container-card {
-            display: flex;
-            gap: 20px;
-        }
+    function submitForm(event, form) {
+        event.preventDefault();
+        const formData = $(form).serialize();
+        console.log('Dados do formulário:', formData);
 
-        .card {
-            width: 800px;
-            padding: 10px;
-            margin: 10px;
-            overflow-y: auto;
-            max-height: 650px;
-        }
-    </style>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
-            const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
-            checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
-        }
-
-        function submitForm(event, form) {
-            event.preventDefault();
-            const formData = $(form).serialize();
-            console.log('Dados do formulário:', formData);
-
-            $.ajax({
-                type: 'POST',
-                url: 'visualizar-unidade.php?idunidade=<?php echo $idunidade; ?>',
-                data: formData,
-                dataType: 'json',
-                success: function(response) {
-                    console.log('Resposta do servidor:', response);
-                    if (response.success) {
-                        alert(response.message);
-                        location.reload(); // Recarregar a página para refletir as mudanças
-                    } else {
-                        alert(response.message || 'Ocorreu um erro ao processar sua solicitação.');
-                        if (response.redirect) {
-                            window.location.href = response.redirect;
-                        }
+        $.ajax({
+            type: 'POST',
+            url: 'visualizar-unidade.php?idunidade=<?php echo $idunidade; ?>',
+            data: formData,
+            dataType: 'json',
+            success: function(response) {
+                console.log('Resposta do servidor:', response);
+                if (response.success) {
+                    alert(response.message);
+                    location.reload(); // Recarregar a página para refletir as mudanças
+                } else {
+                    alert(response.message || 'Ocorreu um erro ao processar sua solicitação.');
+                    if (response.redirect) {
+                        window.location.href = response.redirect;
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Erro na solicitação AJAX:', error);
-                    console.log('Status:', status);
-                    console.log('Resposta completa:', xhr.responseText);
-                    alert('Ocorreu um erro ao processar sua solicitação.');
                 }
-            });
-        }
-    </script>
-</head>
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro na solicitação AJAX:', error);
+                console.log('Status:', status);
+                console.log('Resposta completa:', xhr.responseText);
+                alert('Ocorreu um erro ao processar sua solicitação.');
+            }
+        });
+    }
+</script>
 
-<body>
-    <div class="container mt-3">
+<div class="container mt-3">
         <h3>
             <?php echo htmlspecialchars($unidade['nome_unidade']); ?>
             <button class="btn btn-secondary" onclick="location.href='unidades.php'">Voltar</button>
@@ -207,6 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="card-body">
                     <form method="POST" onsubmit="submitForm(event, this)">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
                         <input type="hidden" name="acao" value="desassociar">
                         <?php if ($nummodulosAssociados > 0): ?>
@@ -239,6 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="card-body">
                     <form method="POST" onsubmit="submitForm(event, this)">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
                         <input type="hidden" name="acao" value="associar">
                         <?php if ($nummodulosNaoAssociados > 0): ?>
@@ -287,6 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="card-body">
                     <form method="POST" onsubmit="submitForm(event, this)">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
                         <input type="hidden" name="acao" value="associar">
                         <?php if (count($preceptoresNaoAssociados) > 0): ?>
@@ -315,6 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="card-body">
                         <form method="POST" onsubmit="submitForm(event, this)">
+                            <?php echo csrf_field(); ?>
                             <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
                             <input type="hidden" name="acao" value="desassociar">
                             <?php mysqli_data_seek($resPreceptores, 0); // Reset result set pointer ?>
@@ -336,13 +328,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
         </div>
-    </div>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-</body>
-</html>

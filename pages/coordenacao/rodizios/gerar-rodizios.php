@@ -9,6 +9,7 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <div class="container mt-3">
     <div class="body">
@@ -28,25 +29,23 @@ if (!isset($conn)) {
             </div>
 
             <form id="rodizioForm" method="POST" action="processar-rodizios.php">
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="periodo" value="" id="hiddenPeriodo">
 
                 <div class="form mt-3">
                     <label>Rodizio 1</label>
                     <input type="date" id="inicio1" name="inicio1">
                     <input type="date" id="fim1" name="fim1">
-                    <input type="hidden" id="modulo1" name="modulo1">
                 </div>
                 <div class="form mt-3">
                     <label>Rodizio 2</label>
                     <input type="date" id="inicio2" name="inicio2">
                     <input type="date" id="fim2" name="fim2">
-                    <input type="hidden" id="modulo2" name="modulo2">
                 </div>
                 <div class="form mt-3">
                     <label>Rodizio 3</label>
                     <input type="date" id="inicio3" name="inicio3">
                     <input type="date" id="fim3" name="fim3">
-                    <input type="hidden" id="modulo3" name="modulo3">
                 </div>
                 <div class="form mt-3">
                     <input type="checkbox" name="no_fill_groups" id="no_fill_groups">
@@ -108,21 +107,10 @@ if (!isset($conn)) {
             return false;
         }
 
-        var modulosArray = Array.from(modulos).map(modulo => modulo.dataset.idmodulo);
-
-        // TODO: revisar lógica de rotação.
-        // As três atribuições anteriores (0,1,2 / 1,2,0 / 2,0,1) eram feitas em sequência
-        // nos mesmos campos, então apenas a última tinha efeito - as duas primeiras eram
-        // código morto. Além disso, processar-rodizios.php nem sequer lê os campos
-        // modulo1/modulo2/modulo3 do POST: o backend recalcula sua própria rotação de
-        // módulos (array $rodizioModulos) a partir da lista de módulos do período. Por isso,
-        // esses campos hoje não têm efeito algum no resultado final. Mantendo apenas a
-        // última atribuição (que era a única realmente aplicada) até que a rotação seja
-        // revisada.
-        document.getElementById('modulo1').value = modulosArray[2];
-        document.getElementById('modulo2').value = modulosArray[0];
-        document.getElementById('modulo3').value = modulosArray[1];
-
+        // A rotação dos 3 módulos entre os 3 grupos ao longo dos 3 rodízios é
+        // calculada no servidor (processar-rodizios.php), com base nos
+        // módulos do período selecionado — o cliente só precisa mandar o
+        // período e as datas.
         document.getElementById('rodizioForm').submit();
     }
 </script>

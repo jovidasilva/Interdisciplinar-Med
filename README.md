@@ -19,7 +19,7 @@ O sistema tem três papéis de usuário, cada um com seu próprio painel:
 - Avaliar alunos (formulário de avaliação com perguntas parametrizáveis)
 
 **Coordenação**
-- Gerenciar usuários (aprovar cadastro, alterar tipo/status, importar em lote via CSV)
+- Gerenciar usuários (aprovar cadastro — usuários novos entram como "pendente" —, alterar tipo/status, importar em lote via CSV, listagem paginada)
 - Gerenciar unidades de saúde e departamentos
 - Gerenciar módulos (disciplinas do internato) e associá-los a alunos/preceptores/unidades
 - Gerenciar grupos e subgrupos de alunos
@@ -27,13 +27,18 @@ O sistema tem três papéis de usuário, cada um com seu próprio painel:
 - Montar a grade de horários
 - Consultar avaliações e relatórios
 
+**Conta e acesso**
+- Login com bloqueio temporário após tentativas seguidas incorretas (rate limiting)
+- Recuperação de senha por e-mail ("esqueci minha senha")
+
 ## Stack
 
 - **Backend:** PHP 8 (sem framework, orientado a includes/roteamento simples por `?page=`), mysqli com prepared statements
 - **Banco de dados:** MySQL 8
 - **Frontend:** Bootstrap 5, Bootstrap Icons, SweetAlert2, JavaScript puro
-- **Dependências:** Composer (PHPMailer, para uma futura funcionalidade de recuperação de senha por e-mail)
-- **Infraestrutura local:** Docker + Docker Compose (app + MySQL + phpMyAdmin)
+- **Dependências:** Composer (PHPMailer para envio de e-mail, PHPUnit para testes)
+- **Infraestrutura local:** Docker + Docker Compose (app + MySQL + phpMyAdmin + Mailpit)
+- **CI:** GitHub Actions (lint PHP, testes PHPUnit, build da imagem Docker)
 
 ## Como rodar localmente (Docker)
 
@@ -46,13 +51,14 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Isso sobe três serviços:
+Isso sobe quatro serviços:
 
 | Serviço      | URL                              | Descrição                          |
 |--------------|-----------------------------------|-------------------------------------|
 | app          | http://localhost:8080             | Aplicação PHP                       |
 | db           | localhost:3306                    | MySQL (schema criado automaticamente) |
 | phpmyadmin   | http://localhost:8081             | Interface de administração do banco |
+| mailpit      | http://localhost:8025             | Caixa de entrada fake — veja aqui os e-mails de "esqueci minha senha" enviados em desenvolvimento |
 
 O banco já sobe com a tabela `usuarios` e um usuário de coordenação padrão para teste imediato:
 
@@ -71,10 +77,11 @@ O banco já sobe com a tabela `usuarios` e um usuário de coordenação padrão 
 ## Estrutura do projeto
 
 ```
-cadastro_e_login/   Login, cadastro e logout
+cadastro_e_login/   Login, cadastro, logout, recuperação de senha
 cfg/                 Configuração de conexão com o banco (lê variáveis de ambiente)
 css/, img/, script/  Estáticos
-includes/            Componentes reutilizados (navbar, menus laterais, perfil)
+includes/            Componentes reutilizados (navbar, menus laterais, perfil,
+                     csrf.php, rate-limit.php, mailer.php, validacao.php)
 pages/
   aluno/             Telas do papel aluno
   preceptor/          Telas do papel preceptor
@@ -82,7 +89,10 @@ pages/
                        (usuarios, modulos, unidades, grupos, horarios, rodizios, avaliacoes)
 db/
   schema.sql          Schema completo do banco
+  migrations/          Alterações incrementais (password reset, rate limiting)
   seed/                Usuário admin padrão + CSVs de exemplo
+tests/               Testes automatizados (PHPUnit)
+.github/workflows/   CI (lint, testes, build Docker)
 ```
 
 ## Modelo de dados (resumo)
@@ -104,8 +114,19 @@ Este projeto passou por uma revisão de segurança que endereçou, entre outros 
 - XSS armazenado em uma tela de upload de CSV
 - Mensagens de erro que expunham detalhes internos do banco de dados
 - Credenciais de banco hardcoded no código-fonte (agora via variáveis de ambiente)
+- Token CSRF em todos os formulários que alteram dados
+- Rate limiting no login (bloqueio temporário após tentativas seguidas incorretas)
 
-Ainda assim, é um projeto acadêmico/de portfólio — não foi feita uma auditoria completa de penetração e não há CSRF token nos formulários. Não recomendado para produção sem uma nova revisão de segurança.
+Limitação conhecida: as ações de exclusão disparadas por link (`GET`, ex: excluir módulo/unidade) ainda não têm proteção CSRF — só as que passam por formulário `POST`. Ainda assim, é um projeto acadêmico/de portfólio; não foi feita uma auditoria completa de penetração e não é recomendado para produção sem uma nova revisão de segurança.
+
+## Testes e CI
+
+```bash
+docker compose exec app composer update   # regenera o composer.lock com o PHPUnit (rodar 1x)
+docker compose exec app vendor/bin/phpunit
+```
+
+O GitHub Actions (`.github/workflows/ci.yml`) roda automaticamente a cada push/PR: lint de todo arquivo PHP, testes PHPUnit e build da imagem Docker.
 
 ## Licença
 

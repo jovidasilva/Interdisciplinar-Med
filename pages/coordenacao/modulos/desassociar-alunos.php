@@ -9,9 +9,12 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 if (isset($_POST['alunosDesassociar']) && isset($_GET['idmodulo'])) {
+    csrf_verify_or_die();
+
     $idmodulo = $_GET['idmodulo'];
     $alunos = $_POST['alunosDesassociar'];
 

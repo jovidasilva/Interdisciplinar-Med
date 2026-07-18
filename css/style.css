@@ -1,3 +1,10 @@
+:root {
+  --brand-blue: #0d4f9b;
+  --brand-blue-dark: #093a75;
+  --brand-blue-darker: #072c58;
+  --brand-blue-light: #e8f1fb;
+}
+
 body {
   background-color: white;
   margin: 0;
@@ -12,7 +19,7 @@ main {
 }
 
 .navbar {
-  background-color: rgb(0, 94, 0);
+  background-color: var(--brand-blue);
   height: 100px;
   padding: 0 20px;
   align-items: center;
@@ -67,7 +74,7 @@ main {
 nav.menu-lateral {
   width: 60px;
   height: calc(100vh - 100px);
-  background-color: rgb(0, 94, 0);
+  background-color: var(--brand-blue);
   position: fixed;
   top: 100px;
   left: 0;
@@ -92,7 +99,7 @@ ul li.item-menu {
 }
 
 ul li.item-menu:hover {
-  background: rgb(0, 60, 0);
+  background: var(--brand-blue-dark);
 }
 
 ul li.item-menu a {
@@ -123,4 +130,76 @@ ul li.item-menu a .icon > i {
 
 .no-caret::after {
   display: none;
+}
+
+/* Páginas de autenticação (login, cadastro, esqueci/redefinir senha):
+   card centralizado com fundo em gradiente, compartilhado entre as 4 telas
+   para evitar repetir o mesmo bloco de <style> em cada arquivo. Não depende
+   de nenhum arquivo de imagem (evita 404 de asset ausente). */
+body.auth-page {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  background-color: var(--brand-blue);
+  background-image: linear-gradient(135deg, var(--brand-blue-darker) 0%, var(--brand-blue) 55%, #1e78c9 100%);
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: center;
+}
+
+.card-login {
+  position: relative;
+  z-index: 2;
+  padding: 2rem;
+  width: 420px;
+  color: #333;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.card-login form {
+  text-align: left;
+}
+
+.card-login h1,
+.card-login h3 {
+  margin-bottom: 1.5rem;
+  font-weight: bold;
+}
+
+.card-login input {
+  margin-bottom: 1rem;
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.card-login button {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: var(--brand-blue);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.card-login button:hover {
+  background-color: var(--brand-blue-dark);
+}
+
+.card-login p.info {
+  font-size: 0.9rem;
+  text-align: left;
 }

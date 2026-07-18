@@ -9,9 +9,12 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify_or_die();
+
     $maxFileSize = 5 * 1024 * 1024;
 
     if (isset($_FILES['file']) && $_FILES['file']['error'] == 0) {
@@ -40,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             while (($data = fgetcsv($handle, 1000, ",")) !== false) {
                 $nome_modulo = $data[0];
-                $periodo = $data[1];
+                $periodo = (int) trim($data[1]);
 
                 if (empty($nome_modulo) || empty($periodo)) {
                     echo "<div class='alert alert-danger'>Dados inválidos na linha do modulo '$nome_modulo'.</div>";
@@ -58,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $duplicated_count++;
                 } else {
                     $stmt = $conn->prepare("INSERT INTO modulos (nome_modulo, periodo) VALUES (?, ?)");
-                    $stmt->bind_param("ss", $nome_modulo, $periodo);
+                    $stmt->bind_param("si", $nome_modulo, $periodo);
 
                     if ($stmt->execute()) {
                         $success_count++;
@@ -90,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="card-body">
             <h3>Importar Módulos</h3>
             <form action="?page=importar-modulos" method="post" enctype="multipart/form-data">
+                <?php echo csrf_field(); ?>
                 <div class="mb-3">
                     <label for="file" class="form-label">Selecione o arquivo CSV</label>
                     <input type="file" name="file" id="file" class="form-control" accept=".csv" required>

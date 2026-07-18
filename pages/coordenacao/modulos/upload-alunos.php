@@ -9,12 +9,15 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 $mensagem = '';
 $alertType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && isset($_POST['idmodulo'])) {
+    csrf_verify_or_die();
+
     $idmodulo = $_POST['idmodulo'];
     $file = $_FILES['file'];
 
@@ -24,19 +27,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && isset($_P
 
         $alunosInscritos = [];
         $alunosNaoInscritos = [];
+        $alunosNaoEncontrados = [];
+        $alunosAmbiguos = [];
+
+        // Descarta a linha de cabeçalho do CSV
+        fgetcsv($handle);
 
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
             $nomeAluno = trim($data[0]);
 
 
-            $stmt = $conn->prepare("SELECT idusuario FROM usuarios WHERE nome = ?");
+            $stmt = $conn->prepare("SELECT idusuario FROM usuarios WHERE nome = ? AND tipo = 0");
             $stmt->bind_param("s", $nomeAluno);
             $stmt->execute();
-            $result = $stmt->get_result();
+            $stmt->store_result();
 
-            if ($row = $result->fetch_assoc()) {
-                $idusuario = $row['idusuario'];
+            if ($stmt->num_rows > 1) {
+                $alunosAmbiguos[] = $nomeAluno;
+                $stmt->close();
+                continue;
+            }
 
+            $stmt->bind_result($idusuario);
+
+            if ($stmt->fetch()) {
+                $stmt->close();
 
                 $stmtCheck = $conn->prepare("SELECT * FROM modulos_alunos WHERE idmodulo = ? AND idusuario = ?");
                 $stmtCheck->bind_param("ii", $idmodulo, $idusuario);
@@ -55,8 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && isset($_P
 
                     $alunosNaoInscritos[] = $nomeAluno;
                 }
+            } else {
+                $stmt->close();
+                $alunosNaoEncontrados[] = $nomeAluno;
             }
-            $stmt->close();
         }
         fclose($handle);
 
@@ -69,6 +86,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && isset($_P
         if (!empty($alunosNaoInscritos)) {
             $alunosNaoInscritosSeguro = array_map('htmlspecialchars', $alunosNaoInscritos);
             $mensagem .= "Os seguintes alunos já estão associados:<br><ul><li>" . implode("</li><li>", $alunosNaoInscritosSeguro) . "</li></ul>";
+            $alertType = 'warning'; // Alerta de aviso
+        }
+        if (!empty($alunosAmbiguos)) {
+            $alunosAmbiguosSeguro = array_map('htmlspecialchars', $alunosAmbiguos);
+            $mensagem .= "Nomes ambíguos (mais de um aluno com esse nome — associe manualmente pela tela de módulos):<br><ul><li>" . implode("</li><li>", $alunosAmbiguosSeguro) . "</li></ul>";
+            $alertType = 'warning'; // Alerta de aviso
+        }
+        if (!empty($alunosNaoEncontrados)) {
+            $alunosNaoEncontradosSeguro = array_map('htmlspecialchars', $alunosNaoEncontrados);
+            $mensagem .= "Os seguintes nomes não foram encontrados:<br><ul><li>" . implode("</li><li>", $alunosNaoEncontradosSeguro) . "</li></ul>";
             $alertType = 'warning'; // Alerta de aviso
         }
     } else {
@@ -93,6 +120,7 @@ $conn->close();
         </div>
         <div class="card-body">
             <form method="POST" enctype="multipart/form-data">
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="idmodulo" value="<?php echo htmlspecialchars($idmodulo); ?>">
                 <div class="mb-3">
                     <label for="fileInput" class="form-label">Selecione o arquivo:</label>

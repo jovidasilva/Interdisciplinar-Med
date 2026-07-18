@@ -1,8 +1,11 @@
 <?php
 session_start();
 include('../cfg/config.php');
+require_once __DIR__ . '/../includes/csrf.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    csrf_verify_or_die();
+
     $nome = $_POST['nome'];
     $email = $_POST['email'];
     $telefone = $_POST['telefone'];
@@ -29,76 +32,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastrar</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css?v=<?php echo ASSET_VERSION; ?>">
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: green;
-            overflow: hidden;
-            background-image: url('../img/bg.jpg');
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            background-position: center;
-
-        }
-
+        /* Ajustes específicos desta tela: card mais largo (mais campos) e
+           botão de submit estreito, em vez do padrão de largura total. */
         .card-login {
-            position: relative;
-            z-index: 2;
-            padding: 2rem;
             width: 500px;
-            color: #333;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.3); 
-            backdrop-filter: blur(10px);
         }
 
-        .card-login form {
-            text-align: left;
-        }
-
-        .card-login h1 {
-            margin-bottom: 1.5rem;
-            font-weight: bold;
-        }
-
-        .card-login input {
-            margin-bottom: 1rem;
-            width: 100%;
-            padding: 0.5rem;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-
-        .card-login button {
+        .card-login button[type="submit"] {
             width: 20%;
-            padding: 0.5rem;
-            background-color: rgb(0, 94, 0);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 3px;
-        }
-
-        .card-login button:hover {
-            background-color: rgb(0, 80, 0);
         }
     </style>
 </head>
 
-<body>
+<body class="auth-page">
     <div class="card-login">
         <h3 id="cadastro-title">Realize seu cadastro</h3>
         <form action="" method="POST">
+            <?php echo csrf_field(); ?>
             <div class="mb-3">
                 <label for="nome">Nome</label>
                 <input type="text" name="nome" class="form-control" required>

@@ -9,6 +9,7 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [1], true)
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 $idaluno = isset($_GET['idaluno']) ? intval($_GET['idaluno']) : null;
@@ -29,7 +30,7 @@ $stmtModulos->bind_param("i", $idaluno);
 $stmtModulos->execute();
 $resultModulos = $stmtModulos->get_result();
 
-$queryPerguntas = "SELECT titulo, descricao FROM perguntas_avaliacoes";
+$queryPerguntas = "SELECT idpergunta, titulo, descricao FROM perguntas_avaliacoes WHERE ativo = 1";
 $resultPerguntas = $conn->query($queryPerguntas);
 ?>
 
@@ -41,7 +42,7 @@ $resultPerguntas = $conn->query($queryPerguntas);
     }
 
     h3 {
-        color: green;
+        color: #0d4f9b;
         font-weight: bold;
         margin-bottom: 1.5rem;
     }
@@ -84,6 +85,7 @@ $resultPerguntas = $conn->query($queryPerguntas);
 
 <h3>Realizar Avaliação</h3>
 <form method="post" action="processar-avaliacao.php?<?php echo 'idaluno=' . $idaluno . '&idpreceptor=' . $idpreceptor; ?>">
+    <?php echo csrf_field(); ?>
     <div class="mb-3">
         <label for="modulo" class="form-label">Módulo</label>
         <select name="modulo" id="modulo" class="form-select" required>
@@ -100,26 +102,26 @@ $resultPerguntas = $conn->query($queryPerguntas);
     </div>
 
     <?php if ($resultPerguntas->num_rows > 0): ?>
-        <?php foreach ($resultPerguntas as $index => $pergunta): ?>
+        <?php foreach ($resultPerguntas as $pergunta): ?>
             <fieldset class="mb-4">
                 <legend><?php echo htmlspecialchars($pergunta['titulo']); ?></legend>
                 <p><?php echo htmlspecialchars($pergunta['descricao']); ?></p>
 
                 <div>
-                    <input type="radio" id="insuficiente_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="4" required>
-                    <label for="insuficiente_<?php echo $index; ?>">Insuficiente</label>
+                    <input type="radio" id="insuficiente_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="4" required>
+                    <label for="insuficiente_<?php echo $pergunta['idpergunta']; ?>">Insuficiente</label>
                 </div>
                 <div>
-                    <input type="radio" id="regular_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="6" required>
-                    <label for="regular_<?php echo $index; ?>">Regular</label>
+                    <input type="radio" id="regular_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="6" required>
+                    <label for="regular_<?php echo $pergunta['idpergunta']; ?>">Regular</label>
                 </div>
                 <div>
-                    <input type="radio" id="bom_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="8" required>
-                    <label for="bom_<?php echo $index; ?>">Bom</label>
+                    <input type="radio" id="bom_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="8" required>
+                    <label for="bom_<?php echo $pergunta['idpergunta']; ?>">Bom</label>
                 </div>
                 <div>
-                    <input type="radio" id="excelente_<?php echo $index; ?>" name="pergunta_<?php echo $index; ?>" value="10" required>
-                    <label for="excelente_<?php echo $index; ?>">Excelente</label>
+                    <input type="radio" id="excelente_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="10" required>
+                    <label for="excelente_<?php echo $pergunta['idpergunta']; ?>">Excelente</label>
                 </div>
             </fieldset>
         <?php endforeach; ?>

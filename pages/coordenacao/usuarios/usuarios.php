@@ -20,7 +20,7 @@ $result = $conn->query($sql);
     <title>Coordenação - Gerenciar Tipos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css">
+    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
 </head>
 
 <body>
@@ -42,14 +42,11 @@ $result = $conn->query($sql);
                         case 'importar-usuarios':
                             include('importar-usuarios.php');
                             break;
-                        case 'alterar-tipo':
-                            include('alterar-tipo.php');
-                            break;
                         case 'excluir-usuarios':
                             include('excluir-usuarios.php');
                             break;
-                        case 'alterar-status':
-                            include('alterar-status.php');
+                        case 'salvar-usuarios':
+                            include('salvar-usuarios.php');
                             break;
                         default:
                             include('listar-usuarios.php');

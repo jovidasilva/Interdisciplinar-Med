@@ -44,21 +44,23 @@ $result = $conn->query($query);
         </tr>
     </thead>
     <tbody>
-        <?php while ($row = $result->fetch_assoc()): ?>
+        <?php if ($result && $result->num_rows > 0): ?>
+            <?php while ($row = $result->fetch_assoc()): ?>
+                <tr>
+                    <td><?php echo $row['idavaliacao']; ?></td>
+                    <td><?php echo htmlspecialchars($row['aluno_nome']); ?></td>
+                    <td><?php echo htmlspecialchars($row['preceptor_nome']); ?></td>
+                    <td><?php echo $row['data_avaliacao']; ?></td>
+                    <td><?php echo $row['nota']; ?></td>
+                    <td>
+                        <a href="?page=detalhes-avaliacoes&idavaliacao=<?php echo $row['idavaliacao']; ?>">Ver Detalhes</a>
+                    </td>
+                </tr>
+            <?php endwhile; ?>
+        <?php else: ?>
             <tr>
-                <td><?php echo $row['idavaliacao']; ?></td>
-                <td><?php echo htmlspecialchars($row['aluno_nome']); ?></td>
-                <td><?php echo htmlspecialchars($row['preceptor_nome']); ?></td>
-                <td><?php echo $row['data_avaliacao']; ?></td>
-                <td><?php echo $row['nota']; ?></td>
-                <td>
-                    <a href="?page=detalhes-avaliacoes&idavaliacao=<?php echo $row['idavaliacao']; ?>">Ver Detalhes</a>
-                </td>
+                <td colspan="6">Nenhuma avaliação encontrada.</td>
             </tr>
-        <?php endwhile; ?>
+        <?php endif; ?>
     </tbody>
 </table>
-
-</body>
-
-</html>

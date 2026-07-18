@@ -9,6 +9,7 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <h1>Editar Módulo</h1>
 <?php
@@ -26,6 +27,7 @@ if (!$row) {
 }
 ?>
 <form action="acoes-unidades.php" method="POST">
+    <?php echo csrf_field(); ?>
     <input type="hidden" name="acao" value="editar">
     <input type="hidden" name="idunidade" value="<?php echo intval($row->idunidade); ?>">
     <div class="mb-3">

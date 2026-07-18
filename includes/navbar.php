@@ -1,3 +1,4 @@
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <nav class="navbar">
     <div class="container-fluid">
         <a href="<?php echo BASE_URL; ?>/includes/redirecionar.php" class="nodec">

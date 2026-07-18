@@ -2,15 +2,13 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
+require_once __DIR__ . '/validacao.php';
+require_once __DIR__ . '/csrf.php';
 include('../cfg/config.php');
 
 if (empty($_SESSION['login'])) {
     header('Location: ../index.php');
     exit();
-}
-
-function validar_email($email) {
-    return filter_var($email, FILTER_VALIDATE_EMAIL) && preg_match('/@.+\./', $email);
 }
 
 function alterar_dados_contato($conn, $idusuario, $email, $telefone) {
@@ -88,6 +86,8 @@ function alterar_senha($conn, $idusuario, $senha_antiga, $senha_nova) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify_or_die();
+
     $idusuario = intval($_POST['idusuario']);
     $action = $_POST['action'];
 

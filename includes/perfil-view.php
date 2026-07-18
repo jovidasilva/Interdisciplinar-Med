@@ -2,7 +2,8 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
-include('../cfg/config.php');
+require_once __DIR__ . '/../cfg/config.php';
+require_once __DIR__ . '/csrf.php';
 
 $stmt = $conn->prepare("SELECT nome, email, telefone, registro, login, tipo FROM usuarios WHERE idusuario = ?");
 $stmt->bind_param("i", $_SESSION['idusuario']);
@@ -45,6 +46,7 @@ switch ($user['tipo']) {
     <h2>Informações do Usuário</h2>
 
     <form action="alterar-dados.php" method="POST">
+        <?php echo csrf_field(); ?>
         <h3>Dados de contato</h3>
         <div class="mb-3">
             <label for="email" class="form-label">Email</label>
@@ -72,6 +74,7 @@ switch ($user['tipo']) {
         <input type="hidden" name="action" value="alterar_dados_contato">
         <button type="submit" class="btn btn-success">Salvar Alterações</button>
         <a href="<?php echo $homeUrl; ?>" class="btn btn-secondary">Voltar</a>
+        <a href="perfil.php?page=editar" class="btn btn-outline-secondary">Editar mais informações</a>
     </form>
 
     <!-- Modal para alterar login -->
@@ -84,6 +87,7 @@ switch ($user['tipo']) {
                 </div>
                 <div class="modal-body">
                     <form method="POST" action="alterar-dados.php">
+                        <?php echo csrf_field(); ?>
                         <div class="form-group">
                             <label for="login_antigo">Login Atual</label>
                             <input type="text" class="form-control" id="login_antigo" name="login_antigo" required>
@@ -111,6 +115,7 @@ switch ($user['tipo']) {
                 </div>
                 <div class="modal-body">
                     <form method="POST" action="alterar-dados.php">
+                        <?php echo csrf_field(); ?>
                         <div class="form-group">
                             <label for="senha_antiga">Senha Atual</label>
                             <input type="password" class="form-control" id="senha_antiga" name="senha_antiga" required>

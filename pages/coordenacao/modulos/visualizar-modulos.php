@@ -9,6 +9,7 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 if (isset($_GET['idmodulo'])) {
@@ -39,42 +40,28 @@ if (isset($_GET['idmodulo'])) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="pt-br">
+<style>
+    .container-card {
+        display: flex;
+        gap: 20px;
+    }
 
-<head>
-    <meta charset="UTF-8">
-    <title>Visualizar Módulo</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css">
-    <style>
-        body{
-            overflow-y: hidden;
-        }
-        .container-card {
-            display: flex;
-            gap: 20px;
-        }
+    .card {
+        width: 800px;
+        padding: 10px;
+        margin: 10px;
+        overflow-y: auto;
+        max-height: 650px;
+    }
+</style>
+<script>
+    function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
+        const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
+        checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
+    }
+</script>
 
-        .card {
-            width: 800px;
-            padding: 10px;
-            margin: 10px;
-            overflow-y: auto;
-            max-height: 650px;
-        }
-    </style>
-    <script>
-        function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
-            const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
-            checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
-        }
-    </script>
-</head>
-
-<body>
-    <div class="container mt-3">
+<div class="container mt-3">
         <h3>
             <?php echo htmlspecialchars($modulo['nome_modulo']); ?> (Período: <?php echo htmlspecialchars($modulo['periodo']); ?>)
             <button onclick="location.href='?page=upload-alunos&idmodulo=<?php echo $idmodulo; ?>'" class="btn btn-secondary">Enviar lista de alunos</button>
@@ -82,6 +69,7 @@ if (isset($_GET['idmodulo'])) {
         </h3>
         <div class="container-card">
             <form method="POST" action="desassociar-alunos.php?idmodulo=<?php echo $idmodulo; ?>">
+                <?php echo csrf_field(); ?>
                 <div class="card">
                     <div class="card-header">
                         <h5>Alunos Matriculados no Módulo</h5>
@@ -124,6 +112,7 @@ if (isset($_GET['idmodulo'])) {
                 </div>
                 <div class="card-body">
                     <form method="POST" action="associar-alunos.php?idmodulo=<?php echo $idmodulo; ?>">
+                        <?php echo csrf_field(); ?>
                         <?php if ($numAlunosNaoAssociados > 0): ?>
                             <?php while ($aluno = $alunosNaoAssociados->fetch_assoc()): ?>
                                 <div class="form-check">
@@ -142,6 +131,3 @@ if (isset($_GET['idmodulo'])) {
             </div>
         </div>
     </div>
-</body>
-
-</html>

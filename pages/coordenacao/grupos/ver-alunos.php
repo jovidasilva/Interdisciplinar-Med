@@ -9,6 +9,7 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 
 // Verifique se o ID do subgrupo está presente no POST ou GET
 $idsubgrupo = filter_input(INPUT_POST, 'idsubgrupo', FILTER_VALIDATE_INT) ?: filter_input(INPUT_GET, 'idsubgrupo', FILTER_VALIDATE_INT);
@@ -20,6 +21,8 @@ if (!$idsubgrupo) {
 
 // Adicionar alunos ao subgrupo
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['alunos'])) {
+    csrf_verify_or_die();
+
     $alunos = filter_input(INPUT_POST, 'alunos', FILTER_DEFAULT, FILTER_REQUIRE_ARRAY);
     try {
         $conn->begin_transaction();
@@ -43,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['alunos'])) {
 
 // Remover aluno do subgrupo
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_aluno'])) {
+    csrf_verify_or_die();
+
     $idaluno = filter_input(INPUT_POST, 'idaluno', FILTER_VALIDATE_INT);
     try {
         $stmt = $conn->prepare("DELETE FROM alunos_subgrupos WHERE idusuario = ? AND idsubgrupo = ?");
@@ -97,7 +102,7 @@ try {
     <title>Alunos do Subgrupo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css">
+    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
     <script>
         function confirmRemoval() {
             return confirm('Tem certeza que deseja remover este aluno do subgrupo?');
@@ -133,6 +138,7 @@ try {
                                         <td><?= htmlspecialchars($aluno['nome']) ?></td>
                                         <td>
                                             <form method="post" style="display:inline;" onsubmit="return confirmRemoval();">
+                                                <?php echo csrf_field(); ?>
                                                 <input type="hidden" name="idsubgrupo" value="<?= htmlspecialchars($idsubgrupo) ?>">
                                                 <input type="hidden" name="idaluno" value="<?= htmlspecialchars($aluno['idusuario']) ?>">
                                                 <input type="hidden" name="nome_subgrupo" value="<?= htmlspecialchars($nomeSubgrupo) ?>">
@@ -168,6 +174,7 @@ try {
                             </div>
                             <div class="modal-body">
                                 <form method="post">
+                                    <?php echo csrf_field(); ?>
                                     <input type="hidden" name="idsubgrupo" value="<?= htmlspecialchars($idsubgrupo) ?>">
                                     <input type="hidden" name="nome_subgrupo" value="<?= htmlspecialchars($nomeSubgrupo) ?>">
                                     <table class="table table-striped table-sm table-responsive">

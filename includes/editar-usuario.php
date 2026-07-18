@@ -3,11 +3,14 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 include('../cfg/config.php');
+require_once __DIR__ . '/csrf.php';
 
 if (empty($_SESSION['login'])) {
     echo "Erro ao atualizar dados: usuário não autenticado.";
     exit();
 }
+
+csrf_verify_or_die();
 
 // Recebe os dados do formulário
 $email = $_POST['email'];

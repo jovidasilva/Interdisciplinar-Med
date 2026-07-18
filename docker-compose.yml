@@ -9,13 +9,18 @@ services:
       DB_PASS: root
       DB_NAME: proj_internato
       DB_PORT: 3306
-      BASE_URL: /
+      BASE_URL: ""
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_FROM: noreply@intermed.local
     volumes:
       - ./:/var/www/html
       - /var/www/html/vendor
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   db:
     image: mysql:8.0
@@ -28,7 +33,9 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/seed/01_admin.sql:/docker-entrypoint-initdb.d/02-seed-admin.sql:ro
+      - ./db/migrations/002_password_reset_tokens.sql:/docker-entrypoint-initdb.d/02-migration-password-reset-tokens.sql:ro
+      - ./db/migrations/003_login_attempts.sql:/docker-entrypoint-initdb.d/03-migration-login-attempts.sql:ro
+      - ./db/seed/01_admin.sql:/docker-entrypoint-initdb.d/04-seed-admin.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 5s
@@ -46,6 +53,13 @@ services:
       - "8081:80"
     depends_on:
       - db
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # interface web para visualizar os e-mails enviados
+      - "1025:1025" # porta SMTP usada pela aplicação (sem TLS/autenticação)
 
 volumes:
   db_data:

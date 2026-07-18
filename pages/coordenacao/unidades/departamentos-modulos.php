@@ -9,11 +9,14 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 
 $iddepartamento = isset($_GET['iddepartamento']) ? intval($_GET['iddepartamento']) : 0;
 $idunidade = isset($_GET['idunidade']) ? intval($_GET['idunidade']) : 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modulos']) && isset($_POST['acao'])) {
+    csrf_verify_or_die();
+
     $modulos = $_POST['modulos'];
     $conn->begin_transaction();
 
@@ -45,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modulos']) && isset($
     <title>Gerenciar Módulos do Departamento</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css">
+    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
     <script>
         function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
             const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
@@ -75,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modulos']) && isset($
                         </div>
                         <div class="card-body">
                             <form method="POST">
+                                <?php echo csrf_field(); ?>
                                 <input type="hidden" name="acao" value="dessassociar">
                                 <?php
                                 $sql = "SELECT m.idmodulo, m.nome_modulo 
@@ -111,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modulos']) && isset($
                         </div>
                         <div class="card-body">
                             <form method="POST">
+                                <?php echo csrf_field(); ?>
                                 <input type="hidden" name="acao" value="associar">
                                 <?php
                                 $sql = "SELECT m.idmodulo, m.nome_modulo 

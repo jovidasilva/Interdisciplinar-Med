@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/cfg/config.php';
+require_once __DIR__ . '/includes/csrf.php';
+?>
 <!DOCTYPE html>
 <html lang="pt-br">
 
@@ -6,77 +10,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v=<?php echo ASSET_VERSION; ?>">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-            background-color: green;
-            background-image: url('img/bg.jpg');
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            background-position: center;
-        }
-
-        .card-login {
-            position: relative;
-            z-index: 2;
-            padding: 2rem;
-            width: 300px;
-            color: #333;
-            background-color: white;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        .card-login h1 {
-            margin-bottom: 1.5rem;
-            font-weight: bold;
-        }
-
-        .card-login input {
-            margin-bottom: 1rem;
-            width: 100%;
-            padding: 0.5rem;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-
-        button {
-            width: 100%;
-            padding: 0.5rem;
-            background-color: rgb(0, 94, 0);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 3px;
-        }
-
-        .card-login button:hover {
-            background-color: rgb(0, 80, 0);
-        }
-    </style>
 </head>
 
-<body>
-    <div class="card-login">
+<body class="auth-page">
+    <div class="card-login" style="width: 300px;">
         <h1>Acesso</h1>
         <form action="cadastro_e_login/login.php" method="POST">
+            <?php echo csrf_field(); ?>
             <input type="text" name=login placeholder="login" required>
             <input type="password" name="senha" placeholder="senha" required>
             <button type="submit">Login</button>
         </form>
+        <a href="cadastro_e_login/esqueci-senha.php" class="d-block mb-2">Esqueci minha senha</a>
         <button onclick="location.href='cadastro_e_login/cadastro.php'">Cadastro</button>
     </div>
 </body>
@@ -104,6 +51,21 @@ if (isset($_GET['alert']) && $_GET['alert'] == '2') {
             position: 'top',
             text: 'Login ou Senha incorreto(s).',
             icon: 'error',
+            confirmButtonText: 'Ok'
+        }).then(function() {
+            window.location.href = window.location.pathname;
+        });
+    </script>";
+}
+
+if (isset($_GET['alert']) && $_GET['alert'] == '3') {
+    $minutos = isset($_GET['min']) ? max(1, intval($_GET['min'])) : 15;
+    $mensagem = 'Muitas tentativas de login. Tente novamente em ' . $minutos . ' minuto(s).';
+    echo "<script>
+        Swal.fire({
+            position: 'top',
+            text: " . json_encode($mensagem, JSON_HEX_TAG) . ",
+            icon: 'warning',
             confirmButtonText: 'Ok'
         }).then(function() {
             window.location.href = window.location.pathname;

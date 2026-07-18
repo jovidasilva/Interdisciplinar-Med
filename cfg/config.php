@@ -14,11 +14,21 @@ if (file_exists($envPath)) {
     }
 }
 
-function env(string $key, string $default): string
-{
-    $value = getenv($key);
-    return $value !== false ? $value : $default;
+if (!function_exists('env')) {
+    function env(string $key, string $default): string
+    {
+        $value = getenv($key);
+        return $value !== false ? $value : $default;
+    }
 }
+
+// Se este arquivo já rodou nesta requisição (porque alguém usou include()
+// simples em vez de include_once/require_once em algum lugar), não abre uma
+// segunda conexão com o banco nem reprocessa o .env.
+if (isset($GLOBALS['__intermed_config_loaded'])) {
+    return;
+}
+$GLOBALS['__intermed_config_loaded'] = true;
 
 if (!defined('HOST')) {
     define('HOST', env('DB_HOST', 'localhost'));
@@ -37,7 +47,14 @@ if (!defined('BASE')) {
 }
 
 if (!defined('BASE_URL')) {
-    define('BASE_URL', env('BASE_URL', '/Interdisciplinar-Med/'));
+    // Vazio por padrão = aplicação servida na raiz do domínio (ex: Docker).
+    // Defina BASE_URL no .env (ex: /Interdisciplinar-Med) se estiver servida
+    // dentro de um subdiretório.
+    define('BASE_URL', env('BASE_URL', ''));
+}
+
+if (!defined('ASSET_VERSION')) {
+    define('ASSET_VERSION', (string) (@filemtime(__DIR__ . '/../css/style.css') ?: '1'));
 }
 
 $conn = new mysqli(HOST, USER, PASS, BASE, (int) env('DB_PORT', '3306'));
@@ -45,3 +62,4 @@ if ($conn->connect_error) {
     error_log("Erro de conexão com o banco de dados: " . $conn->connect_error);
     die("Erro ao conectar ao banco de dados. Tente novamente mais tarde.");
 }
+$conn->set_charset('utf8mb4');

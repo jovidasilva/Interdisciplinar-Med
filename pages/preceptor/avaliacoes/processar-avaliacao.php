@@ -9,10 +9,12 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [1], true)
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify_or_die();
 
     $idaluno = isset($_GET['idaluno']) ? intval($_GET['idaluno']) : null;
     if (!$idaluno) {

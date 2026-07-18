@@ -46,6 +46,11 @@ function saveOrUpdateHorario($conn, $data) {
     $diaSemana = $data['diaSemana'];
     $idDepartamento = $data['idDepartamento'];
 
+    // Verificar se a hora de término é depois da hora de início
+    if (strtotime($horaFim) <= strtotime($horaInicio)) {
+        return ['success' => false, 'message' => 'A hora de fim deve ser posterior à hora de início.'];
+    }
+
     // Verificar se um horário semelhante já existe
     $query = "SELECT idhorario FROM horarios 
               WHERE idunidade = ? AND idmodulo = ? AND dia_semana = ? AND hora_inicio = ? AND hora_fim = ? AND idhorario <> ?";

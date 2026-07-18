@@ -9,6 +9,7 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 
@@ -19,6 +20,8 @@ switch ($acao) {
     case 'editar':
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['idpergunta'], $_POST['titulo'], $_POST['descricao'])) {
+
+            csrf_verify_or_die();
 
             $idpergunta = (int) $_POST['idpergunta'];
             $titulo = $_POST['titulo'];
@@ -64,32 +67,45 @@ switch ($acao) {
 
     case 'excluir':
 
-        $idpergunta = (int) $_GET["idpergunta"];
+        if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['idpergunta'])) {
 
-        $sql = "DELETE FROM perguntas_avaliacoes WHERE idpergunta = ?";
+            csrf_verify_or_die();
 
-        $stmt = $conn->prepare($sql);
+            $idpergunta = (int) $_POST['idpergunta'];
 
-        $stmt->bind_param("i", $idpergunta);
+            $sql = "DELETE FROM perguntas_avaliacoes WHERE idpergunta = ?";
 
-        if ($stmt->execute()) {
+            $stmt = $conn->prepare($sql);
 
+            $stmt->bind_param("i", $idpergunta);
 
-            echo "<script>location.href='?page=listar-perguntas';</script>";
+            if ($stmt->execute()) {
+
+                echo "<script>location.href='?page=listar-perguntas';</script>";
+
+            } else {
+
+                echo "<script>alert('Não foi possível excluir a pergunta.');</script>";
+
+            }
+
+            $stmt->close();
 
         } else {
 
-            echo "<script>alert('Não foi possível excluir a pergunta.');</script>";
+            // GET: apenas exibe a tela de confirmação. A exclusão só
+            // acontece quando o formulário abaixo é submetido via POST.
+            $idpergunta = (int) ($_GET["idpergunta"] ?? 0);
 
         }
-
-        $stmt->close();
 
         break;
 
     case "adicionar":
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['titulo'], $_POST['descricao'])) {
+            csrf_verify_or_die();
+
             $titulo = $_POST["titulo"];
             $descricao = $_POST["descricao"];
 
@@ -108,6 +124,7 @@ if ($acao == 'editar') {
     ?>
     <h2>Editar Pergunta de Avaliação</h2>
     <form action="" method="post">
+        <?php echo csrf_field(); ?>
         <input type="hidden" name="idpergunta" value="<?= htmlspecialchars($idpergunta); ?>">
         <div class="mb-3">
             <label for="titulo" class="form-label">Título da Pergunta</label>
@@ -123,10 +140,13 @@ if ($acao == 'editar') {
         <a href="avaliacoes.php" class="btn btn-secondary">Cancelar</a>
     </form>
     <?php
-} elseif ($acao == 'excluir') {
+} elseif ($acao == 'excluir' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     ?>
+    <h2>Confirmar Exclusão</h2>
+    <p>Tem certeza que deseja excluir esta pergunta? Esta ação não pode ser revertida.</p>
     <form action="" method="post">
-        <input type="hidden" name="idpergunta" value="<?= htmlspecialchars($_GET["idpergunta"]); ?>">
+        <?php echo csrf_field(); ?>
+        <input type="hidden" name="idpergunta" value="<?= htmlspecialchars($idpergunta); ?>">
         <button type="submit" class="btn btn-danger" name="excluir">Excluir Pergunta</button>
         <a href="avaliacoes.php" class="btn btn-secondary">Cancelar</a>
     </form>
@@ -135,6 +155,7 @@ if ($acao == 'editar') {
     ?>
     <h3>Adicionar Nova Pergunta</h3>
     <form action="" method="post">
+        <?php echo csrf_field(); ?>
         <div class="mb-3">
             <label for="titulo" class="form-label">Título da Pergunta</label>
             <input type="text" class="form-control" id="titulo" name="titulo" required>

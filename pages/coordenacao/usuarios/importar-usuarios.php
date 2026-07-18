@@ -9,9 +9,12 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 ?>
 <?php
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify_or_die();
+
     $maxFileSize = 5 * 1024 * 1024;
 
     if (isset($_FILES['file']) && $_FILES['file']['error'] == 0) {
@@ -43,17 +46,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $email = $data[1];
                 $telefone = $data[2];
                 $login = $data[3];
-                $senha = password_hash($data[4], PASSWORD_DEFAULT);
+                $senhaRaw = $data[4];
                 $tipo = $data[5];
                 $registro = $data[6];
                 $ativo = $data[7];
                 $periodo = $data[8];
 
-                if (empty($nome) || empty($email) || empty($telefone) || empty($periodo) || empty($login) || empty($senha) || empty($registro) || empty($ativo) || !filter_var($email, FILTER_VALIDATE_EMAIL) || !in_array($tipo, [0, 1])) {
+                if (empty($nome) || empty($email) || empty($telefone) || empty($periodo) || empty($login) || empty($senhaRaw) || empty($registro) || empty($ativo) || !filter_var($email, FILTER_VALIDATE_EMAIL) || !in_array($tipo, [0, 1])) {
                     echo "<div class='alert alert-danger'>Dados inválidos na linha com login '$login'.</div>";
                     $error_count++;
                     continue;
                 }
+
+                $senha = password_hash($senhaRaw, PASSWORD_DEFAULT);
 
                 $stmt = $conn->prepare("SELECT idusuario FROM usuarios WHERE login = ?");
                 $stmt->bind_param("s", $login);
@@ -98,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="card-body">
             <h3>Importar Lista de Usuários</h3>
             <form action="?page=importar-usuarios" method="post" enctype="multipart/form-data">
+                <?php echo csrf_field(); ?>
                 <div class="mb-3">
                     <label for="file" class="form-label">Selecione o arquivo CSV</label>
                     <input type="file" name="file" id="file" class="form-control" accept=".csv" required>

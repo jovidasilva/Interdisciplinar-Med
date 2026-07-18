@@ -9,10 +9,12 @@ if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], tr
 if (!isset($conn)) {
     require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
 }
+require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
 
 $idunidade = isset($_GET['idunidade']) ? intval($_GET['idunidade']) : 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nome_departamento'])) {
+    csrf_verify_or_die();
     $nome_departamento = $conn->real_escape_string($_POST['nome_departamento']);
     $sql = "INSERT INTO departamentos (nome_departamento, idunidade) VALUES ('$nome_departamento', $idunidade)";
     if ($conn->query($sql) === TRUE) {
@@ -24,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nome_departamento']))
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['iddepartamento'])) {
+    csrf_verify_or_die();
     $iddepartamento = intval($_POST['iddepartamento']);
     $sql = "DELETE FROM departamentos WHERE iddepartamento = $iddepartamento AND idunidade = $idunidade";
     if ($conn->query($sql) === TRUE) {
@@ -35,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['iddepartamento'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idmodulo']) && isset($_POST['iddepartamento'])) {
+    csrf_verify_or_die();
     $idmodulo = intval($_POST['idmodulo']);
     $iddepartamento = intval($_POST['iddepartamento']);
 
@@ -57,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idmodulo']) && isset(
     <title>Gerenciar Departamentos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css">
+    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
 </head>
 
 <body>
@@ -69,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idmodulo']) && isset(
         <div class="container mt-3">
             <h1>Adicionar Departamento</h1>
             <form action="departamento.php?idunidade=<?php echo $idunidade; ?>" method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="mb-3">
                     <label>Nome do Departamento</label>
                     <input type="text" name="nome_departamento" class="form-control" required>
@@ -99,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idmodulo']) && isset(
                             echo "<td>" . htmlspecialchars($row->nome_departamento) . "</td>";
                             echo "<td>
                                 <form action='departamento.php?idunidade=$idunidade' method='POST' style='display:inline;'>
+                                    " . csrf_field() . "
                                     <input type='hidden' name='iddepartamento' value='" . $row->iddepartamento . "'>
                                     <input type='hidden' name='idunidade' value='" . $idunidade . "'>
                                     <button type='submit' class='btn btn-danger' onclick=\"return confirm('Tem certeza que deseja excluir?')\">Excluir</button>

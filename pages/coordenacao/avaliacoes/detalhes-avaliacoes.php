@@ -115,10 +115,16 @@ function tipo_resposta($nota) {
 <p><strong>Aluno:</strong> <?php echo htmlspecialchars($avaliacao['aluno_nome']); ?></p>
 <p><strong>Preceptor:</strong> <?php echo htmlspecialchars($avaliacao['preceptor_nome']); ?></p>
 <p><strong>Módulo:</strong> <?php echo htmlspecialchars($avaliacao['modulo_nome']); ?></p>
-<p><strong>Unidade:</strong> <?php echo htmlspecialchars($unidade['nome_unidade']); ?></p>
+<p><strong>Unidade:</strong> <?php echo $unidade ? htmlspecialchars($unidade['nome_unidade']) : 'Unidade não encontrada para este módulo.'; ?></p>
 <p><strong>Data da Avaliação:</strong> <?php echo $avaliacao['data_avaliacao']; ?></p>
 <p><strong>Nota Final:</strong> <?php echo $avaliacao['nota']; ?></p>
-<p><strong>Rodizio:</strong> <?php echo date('d/m/Y', strtotime($rodizio['rodizio_inicio'])); ?> - <?php echo date('d/m/Y', strtotime($rodizio['rodizio_fim'])); ?></p>
+<p><strong>Rodizio:</strong>
+    <?php if ($rodizio && !empty($rodizio['rodizio_inicio']) && !empty($rodizio['rodizio_fim'])): ?>
+        <?php echo date('d/m/Y', strtotime($rodizio['rodizio_inicio'])); ?> - <?php echo date('d/m/Y', strtotime($rodizio['rodizio_fim'])); ?>
+    <?php else: ?>
+        Rodízio não encontrado para este módulo.
+    <?php endif; ?>
+</p>
 
 <h2>Perguntas e Respostas</h2>
 <table class="table">
@@ -129,12 +135,18 @@ function tipo_resposta($nota) {
         </tr>
     </thead>
     <tbody>
-        <?php while ($resposta = $result_respostas->fetch_assoc()): ?>
+        <?php if ($result_respostas->num_rows > 0): ?>
+            <?php while ($resposta = $result_respostas->fetch_assoc()): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($resposta['pergunta']); ?></td>
+                    <td><?php echo htmlspecialchars(tipo_resposta($resposta['resposta'])); ?></td>
+                </tr>
+            <?php endwhile; ?>
+        <?php else: ?>
             <tr>
-                <td><?php echo htmlspecialchars($resposta['pergunta']); ?></td>
-                <td><?php echo htmlspecialchars(tipo_resposta($resposta['resposta'])); ?></td> 
+                <td colspan="2">Nenhuma resposta registrada para esta avaliação.</td>
             </tr>
-        <?php endwhile; ?>
+        <?php endif; ?>
     </tbody>
 </table>
 
