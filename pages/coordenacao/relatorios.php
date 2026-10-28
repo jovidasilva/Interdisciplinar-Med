@@ -1,224 +1,120 @@
 <?php
-session_start();
-if (empty($_SESSION["login"]) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    echo "<script>location.href='../../index.php';</script>";
-    exit();
+require_once __DIR__ . '/../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+
+$geral = db_um($conn, 'SELECT COUNT(*) AS total, AVG(nota) AS media FROM avaliacoes');
+
+$porModulo = db_todos($conn, "SELECT m.nome_modulo, m.periodo,
+        COUNT(DISTINCT ma.idusuario) AS matriculados,
+        COUNT(DISTINCT a.idavaliacao) AS avaliacoes,
+        AVG(a.nota) AS media
+    FROM modulos m
+    LEFT JOIN modulos_alunos ma ON ma.idmodulo = m.idmodulo
+    LEFT JOIN avaliacoes a ON a.idmodulo = m.idmodulo
+    GROUP BY m.idmodulo, m.nome_modulo, m.periodo
+    ORDER BY m.periodo, m.nome_modulo");
+
+$porPreceptor = db_todos($conn, "SELECT u.nome,
+        COUNT(a.idavaliacao) AS avaliacoes, AVG(a.nota) AS media,
+        (SELECT COUNT(*) FROM preceptores_modulos pm JOIN modulos_alunos ma ON ma.idmodulo = pm.idmodulo
+            WHERE pm.idusuario = u.idusuario
+              AND NOT EXISTS (SELECT 1 FROM avaliacoes x WHERE x.idaluno = ma.idusuario AND x.idmodulo = ma.idmodulo AND x.idpreceptor = u.idusuario)) AS pendentes
+    FROM usuarios u
+    LEFT JOIN avaliacoes a ON a.idpreceptor = u.idusuario
+    WHERE u.tipo IN (1, 3) AND u.ativo = 1
+    GROUP BY u.idusuario, u.nome
+    ORDER BY pendentes DESC, u.nome");
+
+// Matriculados em módulo cujo rodízio já terminou, sem nenhuma avaliação nesse módulo.
+$semAvaliacao = db_todos($conn, "SELECT DISTINCT u.nome, u.registro, m.nome_modulo, r.fim
+    FROM modulos_alunos ma
+    JOIN usuarios u ON u.idusuario = ma.idusuario AND u.ativo = 1
+    JOIN modulos m ON m.idmodulo = ma.idmodulo
+    JOIN alunos_subgrupos asg ON asg.idusuario = u.idusuario
+    JOIN rodizios_subgrupos rs ON rs.idsubgrupo = asg.idsubgrupo
+    JOIN rodizios r ON r.idrodizio = rs.idrodizio AND r.idmodulo = m.idmodulo AND r.fim < CURDATE()
+    WHERE NOT EXISTS (SELECT 1 FROM avaliacoes a WHERE a.idaluno = u.idusuario AND a.idmodulo = m.idmodulo)
+    ORDER BY r.fim DESC, u.nome
+    LIMIT 200");
+
+function nota_fmt($v): string
+{
+    return $v !== null ? number_format((float) $v, 2, ',', '.') : '—';
 }
 
-include('../../cfg/config.php');
-
+layout_inicio('Relatórios');
+page_header('Relatórios', 'Indicadores de avaliação por módulo e por preceptor.');
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
+<div class="stats">
+    <?= stat_tile('Avaliações realizadas', (string) $geral['total'], 'bi-clipboard-check', 'avaliacoes/avaliacoes.php') ?>
+    <?= stat_tile('Média geral', nota_fmt($geral['media']), 'bi-graph-up') ?>
+    <?= stat_tile('Rodízios concluídos sem avaliação', (string) count($semAvaliacao), 'bi-exclamation-triangle') ?>
+</div>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatorios</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
+<div class="card">
+    <div class="card-header"><h2>Por módulo</h2></div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Módulo</th><th>Período</th><th class="text-end">Matriculados</th><th class="text-end">Avaliações</th><th style="width: 30%">Cobertura</th><th class="text-end">Média</th></tr></thead>
+            <tbody>
+                <?php foreach ($porModulo as $m): $cob = $m['matriculados'] ? min(100, round($m['avaliacoes'] / $m['matriculados'] * 100)) : 0; ?>
+                    <tr>
+                        <td class="fw-medium"><?= e($m['nome_modulo']) ?></td>
+                        <td><?= (int) $m['periodo'] ?>º</td>
+                        <td class="text-end"><?= (int) $m['matriculados'] ?></td>
+                        <td class="text-end"><?= (int) $m['avaliacoes'] ?></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height: 6px" role="progressbar" aria-valuenow="<?= $cob ?>" aria-valuemin="0" aria-valuemax="100" aria-label="Cobertura de avaliações">
+                                    <div class="progress-bar" style="width: <?= $cob ?>%; background: var(--brand)"></div>
+                                </div>
+                                <span class="small text-muted tabular" style="width: 3ch"><?= $cob ?>%</span>
+                            </div>
+                        </td>
+                        <td class="text-end fw-semibold"><?= nota_fmt($m['media']) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$porModulo): ?><tr><td colspan="6"><?= empty_state('Nenhum módulo cadastrado.') ?></td></tr><?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
 
-<body>
-    <header>
-        <?php include('../../includes/navbar.php'); ?>
-        <?php include('../../includes/menu-lateral-coordenacao.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-3">
-            <?php
-            $totalAlunosAtivos = 0;
-            $totalPreceptoresAtivos = 0;
-            $totalPendentes = 0;
-            $totalModulos = 0;
-            $totalUnidades = 0;
-            $totalAvaliacoes = 0;
-            $mediaGeral = 0;
+<div class="card">
+    <div class="card-header"><h2>Por preceptor</h2></div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Preceptor</th><th class="text-end">Avaliações</th><th class="text-end">Pendentes</th><th class="text-end">Média atribuída</th></tr></thead>
+            <tbody>
+                <?php foreach ($porPreceptor as $p): ?>
+                    <tr>
+                        <td class="fw-medium"><?= e($p['nome']) ?></td>
+                        <td class="text-end"><?= (int) $p['avaliacoes'] ?></td>
+                        <td class="text-end"><?= (int) $p['pendentes'] ? '<span class="status status-warning">' . (int) $p['pendentes'] . '</span>' : '0' ?></td>
+                        <td class="text-end"><?= nota_fmt($p['media']) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$porPreceptor): ?><tr><td colspan="4"><?= empty_state('Nenhum preceptor ativo.') ?></td></tr><?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
 
-            $res = $conn->query("SELECT COUNT(*) AS total FROM usuarios WHERE tipo = 0 AND ativo = 1");
-            if ($res) {
-                $totalAlunosAtivos = (int) $res->fetch_assoc()['total'];
-            }
-
-            $res = $conn->query("SELECT COUNT(*) AS total FROM usuarios WHERE tipo = 1 AND ativo = 1");
-            if ($res) {
-                $totalPreceptoresAtivos = (int) $res->fetch_assoc()['total'];
-            }
-
-            $res = $conn->query("SELECT COUNT(*) AS total FROM usuarios WHERE tipo = -1");
-            if ($res) {
-                $totalPendentes = (int) $res->fetch_assoc()['total'];
-            }
-
-            $res = $conn->query("SELECT COUNT(*) AS total FROM modulos");
-            if ($res) {
-                $totalModulos = (int) $res->fetch_assoc()['total'];
-            }
-
-            $res = $conn->query("SELECT COUNT(*) AS total FROM unidades");
-            if ($res) {
-                $totalUnidades = (int) $res->fetch_assoc()['total'];
-            }
-
-            $res = $conn->query("SELECT COUNT(*) AS total, AVG(nota) AS media FROM avaliacoes");
-            if ($res) {
-                $row = $res->fetch_assoc();
-                $totalAvaliacoes = (int) $row['total'];
-                $mediaGeral = $row['media'] !== null ? (float) $row['media'] : 0;
-            }
-
-            // Alunos matriculados em algum módulo mas sem nenhuma avaliação registrada.
-            $alunosSemAvaliacao = [];
-            $query = "SELECT DISTINCT u.idusuario, u.nome, u.registro
-                      FROM usuarios u
-                      JOIN modulos_alunos ma ON ma.idusuario = u.idusuario
-                      WHERE u.tipo = 0
-                        AND NOT EXISTS (SELECT 1 FROM avaliacoes a WHERE a.idaluno = u.idusuario)
-                      ORDER BY u.nome";
-            $res = $conn->query($query);
-            if ($res) {
-                $alunosSemAvaliacao = $res->fetch_all(MYSQLI_ASSOC);
-            }
-
-            // Módulos sem nenhum preceptor associado em preceptores_modulos.
-            $modulosSemPreceptor = [];
-            $query = "SELECT m.idmodulo, m.nome_modulo
-                      FROM modulos m
-                      WHERE NOT EXISTS (SELECT 1 FROM preceptores_modulos pm WHERE pm.idmodulo = m.idmodulo)
-                      ORDER BY m.nome_modulo";
-            $res = $conn->query($query);
-            if ($res) {
-                $modulosSemPreceptor = $res->fetch_all(MYSQLI_ASSOC);
-            }
-            ?>
-
-            <h3 class="mb-3">Relatórios Gerenciais</h3>
-
-            <div class="row g-3 mb-4">
-                <div class="col-md-3 col-sm-6">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="bi bi-person-fill fs-2 text-primary"></i>
-                            <h2 class="mt-2"><?php echo $totalAlunosAtivos; ?></h2>
-                            <p class="text-muted mb-0">Alunos Ativos</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="bi bi-person-workspace fs-2 text-success"></i>
-                            <h2 class="mt-2"><?php echo $totalPreceptoresAtivos; ?></h2>
-                            <p class="text-muted mb-0">Preceptores Ativos</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="bi bi-person-check fs-2 text-warning"></i>
-                            <h2 class="mt-2"><?php echo $totalPendentes; ?></h2>
-                            <p class="text-muted mb-0">Usuários Pendentes de Aprovação</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="bi bi-grid fs-2 text-info"></i>
-                            <h2 class="mt-2"><?php echo $totalModulos; ?></h2>
-                            <p class="text-muted mb-0">Módulos Cadastrados</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="bi bi-building fs-2 text-secondary"></i>
-                            <h2 class="mt-2"><?php echo $totalUnidades; ?></h2>
-                            <p class="text-muted mb-0">Unidades Cadastradas</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="bi bi-journal-text fs-2 text-primary"></i>
-                            <h2 class="mt-2"><?php echo $totalAvaliacoes; ?></h2>
-                            <p class="text-muted mb-0">Avaliações Realizadas</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="bi bi-graph-up fs-2 text-success"></i>
-                            <h2 class="mt-2"><?php echo number_format($mediaGeral, 2, ',', '.'); ?></h2>
-                            <p class="text-muted mb-0">Média Geral de Notas</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h4><i class="bi bi-exclamation-triangle text-warning"></i> Alunos sem Avaliação</h4>
-                    <?php if (empty($alunosSemAvaliacao)): ?>
-                        <div class="alert alert-success mb-0">Não há alunos matriculados sem avaliação.</div>
-                    <?php else: ?>
-                        <table class="table table-striped table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>RA</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($alunosSemAvaliacao as $a): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($a['nome']); ?></td>
-                                        <td><?php echo htmlspecialchars($a['registro']); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h4><i class="bi bi-exclamation-triangle text-warning"></i> Módulos sem Preceptor Associado</h4>
-                    <?php if (empty($modulosSemPreceptor)): ?>
-                        <div class="alert alert-success mb-0">Não há módulos sem preceptor associado.</div>
-                    <?php else: ?>
-                        <table class="table table-striped table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Módulo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($modulosSemPreceptor as $m): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($m['nome_modulo']); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
-                </div>
-            </div>
+<div class="card">
+    <div class="card-header"><h2>Rodízios concluídos sem avaliação</h2><span class="text-muted">Aluno passou pelo módulo e ninguém o avaliou</span></div>
+    <?php if (!$semAvaliacao): ?>
+        <div class="card-body"><?= empty_state('Nenhuma pendência: todos os rodízios concluídos têm avaliação.', 'bi-check2-circle') ?></div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Aluno</th><th>RA</th><th>Módulo</th><th>Rodízio terminou em</th></tr></thead>
+                <tbody>
+                    <?php foreach ($semAvaliacao as $s): ?>
+                        <tr><td><?= e($s['nome']) ?></td><td><?= e($s['registro']) ?></td><td><?= e($s['nome_modulo']) ?></td><td><?= e(data_br($s['fim'])) ?></td></tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-</body>
-
-</html>
+    <?php endif; ?>
+</div>
+<?php layout_fim(); ?>

@@ -1,217 +1,112 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
 
-// Verifique se o ID do subgrupo está presente no POST ou GET
-$idsubgrupo = filter_input(INPUT_POST, 'idsubgrupo', FILTER_VALIDATE_INT) ?: filter_input(INPUT_GET, 'idsubgrupo', FILTER_VALIDATE_INT);
-$nomeSubgrupo = filter_input(INPUT_POST, 'nome_subgrupo', FILTER_CALLBACK, ['options' => 'trim']) ?: filter_input(INPUT_GET, 'nome_subgrupo', FILTER_CALLBACK, ['options' => 'trim']);
+$idsubgrupo = (int) ($_GET['idsubgrupo'] ?? $_POST['idsubgrupo'] ?? 0);
+$sub = db_um($conn, 'SELECT sg.idsubgrupo, sg.nome_subgrupo, g.idciclo, c.descricao, c.periodo
+    FROM subgrupos sg JOIN grupos g ON g.idgrupo = sg.idgrupo LEFT JOIN rodizio_ciclos c ON c.idciclo = g.idciclo
+    WHERE sg.idsubgrupo = ?', 'i', [$idsubgrupo])
+    ?? redirecionar('grupos.php', 'Subgrupo não encontrado.', 'error');
+$aqui = 'ver-alunos.php?idsubgrupo=' . $idsubgrupo;
+$idciclo = (int) $sub['idciclo'];
 
-if (!$idsubgrupo) {
-    die("ID de subgrupo inválido.");
-}
-
-// Adicionar alunos ao subgrupo
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['alunos'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify_or_die();
+    $ids = ids_do_post('alunos');
+    $acao = $_POST['acao'] ?? '';
 
-    $alunos = filter_input(INPUT_POST, 'alunos', FILTER_DEFAULT, FILTER_REQUIRE_ARRAY);
-    try {
-        $conn->begin_transaction();
+    // Um aluno fica em um único subgrupo por ciclo: adicionar/mover sempre
+    // tira o aluno de qualquer outro subgrupo do mesmo ciclo antes.
+    $tirarDoCiclo = 'DELETE asg FROM alunos_subgrupos asg JOIN subgrupos sg ON sg.idsubgrupo = asg.idsubgrupo JOIN grupos g ON g.idgrupo = sg.idgrupo
+        WHERE asg.idusuario = ? AND g.idciclo = ?';
 
-        $stmt = $conn->prepare("INSERT INTO alunos_subgrupos (idusuario, idsubgrupo) VALUES (?, ?)");
-        foreach ($alunos as $idaluno) {
-            $stmt->bind_param("ii", $idaluno, $idsubgrupo);
-            $stmt->execute();
+    $conn->begin_transaction();
+    if ($acao === 'remover') {
+        foreach ($ids as $id) {
+            db_exec($conn, 'DELETE FROM alunos_subgrupos WHERE idusuario = ? AND idsubgrupo = ?', 'ii', [$id, $idsubgrupo]);
         }
-
-        $conn->commit();
-        $stmt->close();
-        header("Location: ver-alunos.php?idsubgrupo={$idsubgrupo}&nome_subgrupo=" . urlencode($nomeSubgrupo));
-        exit();
-    } catch (Exception $e) {
+        $msg = count($ids) . ' aluno(s) removido(s) do subgrupo.';
+    } elseif ($acao === 'mover' || $acao === 'adicionar') {
+        $destino = $acao === 'mover' ? (int) ($_POST['destino'] ?? 0) : $idsubgrupo;
+        $ok = db_um($conn, 'SELECT 1 FROM subgrupos sg JOIN grupos g ON g.idgrupo = sg.idgrupo WHERE sg.idsubgrupo = ? AND g.idciclo = ?', 'ii', [$destino, $idciclo]);
+        if (!$ok) {
+            $conn->rollback();
+            redirecionar($aqui, 'Escolha um subgrupo de destino deste ciclo.', 'error');
+        }
+        foreach ($ids as $id) {
+            db_exec($conn, $tirarDoCiclo, 'ii', [$id, $idciclo]);
+            db_exec($conn, 'INSERT INTO alunos_subgrupos (idusuario, idsubgrupo) SELECT idusuario, ? FROM usuarios WHERE idusuario = ? AND tipo = 0', 'ii', [$destino, $id]);
+        }
+        $msg = count($ids) . ($acao === 'mover' ? ' aluno(s) movido(s).' : ' aluno(s) adicionado(s).');
+    } else {
         $conn->rollback();
-        error_log("Erro ao adicionar alunos: " . $e->getMessage());
-        die("Erro ao adicionar alunos.");
+        redirecionar($aqui, 'Ação inválida.', 'error');
     }
+    $conn->commit();
+    redirecionar($aqui, $msg);
 }
 
-// Remover aluno do subgrupo
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_aluno'])) {
-    csrf_verify_or_die();
+$alunos = db_todos($conn, 'SELECT u.idusuario, u.nome, u.registro FROM alunos_subgrupos asg JOIN usuarios u ON u.idusuario = asg.idusuario
+    WHERE asg.idsubgrupo = ? ORDER BY u.nome', 'i', [$idsubgrupo]);
+$outrosSubgrupos = db_todos($conn, 'SELECT sg.idsubgrupo, sg.nome_subgrupo FROM subgrupos sg JOIN grupos g ON g.idgrupo = sg.idgrupo
+    WHERE g.idciclo = ? AND sg.idsubgrupo <> ? ORDER BY sg.nome_subgrupo', 'ii', [$idciclo, $idsubgrupo]);
+// Alunos ativos do período do ciclo que não estão em nenhum subgrupo dele.
+$foraDoCiclo = db_todos($conn, 'SELECT u.idusuario, u.nome, u.registro FROM usuarios u
+    WHERE u.tipo = 0 AND u.ativo = 1 AND u.periodo = ?
+      AND NOT EXISTS (SELECT 1 FROM alunos_subgrupos asg JOIN subgrupos sg ON sg.idsubgrupo = asg.idsubgrupo JOIN grupos g ON g.idgrupo = sg.idgrupo
+                      WHERE asg.idusuario = u.idusuario AND g.idciclo = ?)
+    ORDER BY u.nome', 'ii', [(int) $sub['periodo'], $idciclo]);
 
-    $idaluno = filter_input(INPUT_POST, 'idaluno', FILTER_VALIDATE_INT);
-    try {
-        $stmt = $conn->prepare("DELETE FROM alunos_subgrupos WHERE idusuario = ? AND idsubgrupo = ?");
-        $stmt->bind_param("ii", $idaluno, $idsubgrupo);
-        $stmt->execute();
-        $stmt->close();
-        header("Location: ver-alunos.php?idsubgrupo={$idsubgrupo}&nome_subgrupo=" . urlencode($nomeSubgrupo));
-        exit();
-    } catch (Exception $e) {
-        error_log("Erro ao remover aluno: " . $e->getMessage());
-        die("Erro ao remover aluno.");
-    }
-}
-
-try {
-    $queryAlunos = "SELECT u.idusuario, u.nome
-                    FROM usuarios u 
-                    JOIN alunos_subgrupos asg ON u.idusuario = asg.idusuario 
-                    WHERE asg.idsubgrupo = ?";
-
-    $queryAlunosSemSubgrupo = "SELECT DISTINCT u.idusuario, u.nome
-                                FROM usuarios u 
-                                JOIN modulos_alunos ma ON u.idusuario = ma.idusuario 
-                                WHERE u.idusuario NOT IN (
-                                    SELECT idusuario 
-                                    FROM alunos_subgrupos 
-                                    WHERE idsubgrupo = ?
-                                )";
-
-    $stmtAlunos = $conn->prepare($queryAlunos);
-    $stmtAlunos->bind_param("i", $idsubgrupo);
-    $stmtAlunos->execute();
-    $resultAlunos = $stmtAlunos->get_result();
-
-    $stmtAlunosSemSubgrupo = $conn->prepare($queryAlunosSemSubgrupo);
-    $stmtAlunosSemSubgrupo->bind_param("i", $idsubgrupo);
-    $stmtAlunosSemSubgrupo->execute();
-    $resultAlunosSemSubgrupo = $stmtAlunosSemSubgrupo->get_result();
-
-} catch (Exception $e) {
-    error_log("Erro na consulta: " . $e->getMessage());
-    die("Erro ao buscar alunos.");
-}
+layout_inicio('Subgrupo ' . $sub['nome_subgrupo']);
+page_header('Subgrupo ' . $sub['nome_subgrupo'], ($sub['descricao'] ?? 'Sem ciclo') . ' · ' . count($alunos) . ' aluno(s)', botao_voltar('grupos.php?ciclo=' . $idciclo));
 ?>
-
-<!DOCTYPE html>
-<html lang="pt-br">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alunos do Subgrupo</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-    <script>
-        function confirmRemoval() {
-            return confirm('Tem certeza que deseja remover este aluno do subgrupo?');
-        }
-    </script>
-</head>
-
-<body>
-    <header>
-        <?php include('../../../includes/navbar.php'); ?>
-        <?php include('../../../includes/menu-lateral-coordenacao.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-3">
-            <h2>Alunos do Subgrupo: <?= htmlspecialchars($nomeSubgrupo) ?></h2>
-
-            <?php if ($resultAlunos->num_rows > 0): ?>
-                <div class="card mb-3">
-                    <div class="card-header">Alunos no Subgrupo</div>
-                    <div class="card-body">
-                        <table class="table table-striped table-sm table-responsive">
-                            <thead>
-                                <tr>
-                                    <th class="col-2">ID</th>
-                                    <th class="col-7">Nome</th>
-                                    <th class="col-3">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($aluno = $resultAlunos->fetch_assoc()): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
-                                        <td><?= htmlspecialchars($aluno['nome']) ?></td>
-                                        <td>
-                                            <form method="post" style="display:inline;" onsubmit="return confirmRemoval();">
-                                                <?php echo csrf_field(); ?>
-                                                <input type="hidden" name="idsubgrupo" value="<?= htmlspecialchars($idsubgrupo) ?>">
-                                                <input type="hidden" name="idaluno" value="<?= htmlspecialchars($aluno['idusuario']) ?>">
-                                                <input type="hidden" name="nome_subgrupo" value="<?= htmlspecialchars($nomeSubgrupo) ?>">
-                                                <button type="submit" name="remove_aluno" class="btn btn-danger btn-sm">Remover</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            <?php else: ?>
-                <div class="alert alert-info">Nenhum aluno encontrado no subgrupo.</div>
-            <?php endif; ?>
-
-            <?php if ($resultAlunosSemSubgrupo->num_rows > 0): ?>
-                <div class="card">
-                    <div class="card-header">
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#alunosSemSubgrupoModal">
-                            Alunos sem Subgrupo
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Modal Alunos sem Subgrupo -->
-                <div class="modal fade" id="alunosSemSubgrupoModal" tabindex="-1">
-                    <div class="modal-dialog modal-dialog-centered modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Alunos sem Subgrupo</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <form method="post">
-                                    <?php echo csrf_field(); ?>
-                                    <input type="hidden" name="idsubgrupo" value="<?= htmlspecialchars($idsubgrupo) ?>">
-                                    <input type="hidden" name="nome_subgrupo" value="<?= htmlspecialchars($nomeSubgrupo) ?>">
-                                    <table class="table table-striped table-sm table-responsive">
-                                        <thead>
-                                            <tr>
-                                                <th class="col-1">Select</th>
-                                                <th class="col-3">ID</th>
-                                                <th class="col-8">Nome</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php while ($aluno = $resultAlunosSemSubgrupo->fetch_assoc()): ?>
-                                                <tr>
-                                                    <td><input type="checkbox" name="alunos[]" value="<?= htmlspecialchars($aluno['idusuario']) ?>"></td>
-                                                    <td><?= htmlspecialchars($aluno['idusuario']) ?></td>
-                                                    <td><?= htmlspecialchars($aluno['nome']) ?></td>
-                                                </tr>
-                                            <?php endwhile; ?>
-                                        </tbody>
-                                    </table>
-                                    <button type="submit" class="btn btn-primary">Adicionar ao Subgrupo</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-            
-            <button onclick="location.href='grupos.php'" class="btn btn-secondary mt-3">Voltar</button>
+<div class="assoc">
+    <form method="POST" class="card" data-require-check="alunos[]">
+        <?= csrf_field() ?>
+        <input type="hidden" name="idsubgrupo" value="<?= $idsubgrupo ?>">
+        <div class="card-header">
+            <h2>Alunos no subgrupo</h2>
+            <?php if ($alunos): ?><label class="small"><input type="checkbox" class="form-check-input me-1" data-select-all="sel-in"> Todos</label><?php endif; ?>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body"></div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+        <?php if (!$alunos): ?>
+            <div class="card-body"><?= empty_state('Nenhum aluno neste subgrupo.', 'bi-people') ?></div>
+        <?php else: ?>
+            <ul class="check-list">
+                <?php foreach ($alunos as $a): ?>
+                    <li><label><input type="checkbox" class="form-check-input sel-in" name="alunos[]" value="<?= (int) $a['idusuario'] ?>"> <?= e($a['nome']) ?><small><?= e($a['registro']) ?></small></label></li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="card-footer">
+                <div class="d-flex gap-2 align-items-center">
+                    <?php if ($outrosSubgrupos): ?>
+                        <select name="destino" class="form-select form-select-sm w-auto" aria-label="Subgrupo de destino">
+                            <?php foreach ($outrosSubgrupos as $o): ?><option value="<?= (int) $o['idsubgrupo'] ?>"><?= e($o['nome_subgrupo']) ?></option><?php endforeach; ?>
+                        </select>
+                        <button name="acao" value="mover" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-left-right"></i> Mover</button>
+                    <?php endif; ?>
+                </div>
+                <button name="acao" value="remover" class="btn btn-sm btn-outline-danger"><i class="bi bi-dash-circle"></i> Remover</button>
+            </div>
+        <?php endif; ?>
+    </form>
 
-</html>
+    <form method="POST" class="card" data-require-check="alunos[]">
+        <?= csrf_field() ?>
+        <input type="hidden" name="idsubgrupo" value="<?= $idsubgrupo ?>">
+        <div class="card-header">
+            <h2>Fora do ciclo <span class="text-muted fw-normal">(<?= (int) $sub['periodo'] ?>º período)</span></h2>
+            <?php if ($foraDoCiclo): ?><label class="small"><input type="checkbox" class="form-check-input me-1" data-select-all="sel-out"> Todos</label><?php endif; ?>
+        </div>
+        <?php if (!$foraDoCiclo): ?>
+            <div class="card-body"><?= empty_state('Todos os alunos ativos do período já estão em algum subgrupo deste ciclo.', 'bi-check2-circle') ?></div>
+        <?php else: ?>
+            <ul class="check-list">
+                <?php foreach ($foraDoCiclo as $a): ?>
+                    <li><label><input type="checkbox" class="form-check-input sel-out" name="alunos[]" value="<?= (int) $a['idusuario'] ?>"> <?= e($a['nome']) ?><small><?= e($a['registro']) ?></small></label></li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="card-footer"><span></span><button name="acao" value="adicionar" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> Adicionar a este subgrupo</button></div>
+        <?php endif; ?>
+    </form>
+</div>
+<?php layout_fim(); ?>

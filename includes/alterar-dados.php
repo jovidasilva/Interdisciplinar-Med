@@ -1,132 +1,57 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/app.php';
 require_once __DIR__ . '/validacao.php';
-require_once __DIR__ . '/csrf.php';
-include('../cfg/config.php');
+exigir_acesso();
+exigir_post();
 
-if (empty($_SESSION['login'])) {
-    header('Location: ../index.php');
-    exit();
+// Sempre altera o próprio usuário (o id vem da sessão, nunca do formulário).
+$idusuario = usuario_id();
+$action = $_POST['action'] ?? '';
+
+/** Confere a senha atual do usuário logado. */
+function senha_confere(mysqli $conn, int $idusuario, string $senha): bool
+{
+    $row = db_um($conn, 'SELECT senha FROM usuarios WHERE idusuario = ?', 'i', [$idusuario]);
+    return $row && password_verify($senha, (string) $row['senha']);
 }
 
-function alterar_dados_contato($conn, $idusuario, $email, $telefone) {
-    if (!validar_email($email)) {
-        $_SESSION['msg'] = 'Email inválido.';
+if ($action === 'alterar_dados_contato') {
+    $email = trim((string) ($_POST['email'] ?? ''));
+    $telefone = trim((string) ($_POST['telefone'] ?? ''));
+    if (!validar_email($email) || $telefone === '') {
         $_SESSION['form_data'] = ['email' => $email, 'telefone' => $telefone];
-        header('Location: perfil.php');
-        exit();
+        redirecionar('perfil.php', 'Informe um e-mail válido e um telefone.', 'error');
     }
-
-    $stmt = $conn->prepare("UPDATE usuarios SET email = ?, telefone = ? WHERE idusuario = ?");
-    $stmt->bind_param("ssi", $email, $telefone, $idusuario);
-
-    if ($stmt->execute()) {
-        $_SESSION['msg'] = 'Dados de contato atualizados com sucesso!';
-        return true;
-    } else {
-        $_SESSION['msg'] = 'Erro ao atualizar dados de contato: ' . $stmt->error;
-        return false;
-    }
+    db_exec($conn, 'UPDATE usuarios SET email = ?, telefone = ? WHERE idusuario = ?', 'ssi', [$email, $telefone, $idusuario]);
+    redirecionar('perfil.php', 'Dados de contato atualizados.');
 }
 
-function alterar_login($conn, $idusuario, $login_antigo, $login_novo) {
-    $stmt = $conn->prepare("SELECT login FROM usuarios WHERE idusuario = ? AND login = ?");
-    $stmt->bind_param("is", $idusuario, $login_antigo);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $stmt = $conn->prepare("UPDATE usuarios SET login = ? WHERE idusuario = ?");
-        $stmt->bind_param("si", $login_novo, $idusuario);
-
-        if ($stmt->execute()) {
-            $_SESSION['msg'] = 'Login alterado com sucesso!';
-            return true;
-        } else {
-            $_SESSION['msg'] = 'Erro ao alterar login: ' . $stmt->error;
-            return false;
-        }
-    } else {
-        $_SESSION['msg'] = 'Login Atual incorreto.';
-        return false;
+if ($action === 'alterar_login') {
+    $loginNovo = trim((string) ($_POST['login_novo'] ?? ''));
+    if (!senha_confere($conn, $idusuario, (string) ($_POST['senha_atual'] ?? ''))) {
+        redirecionar('perfil.php', 'Senha atual incorreta.', 'error');
     }
+    if ($loginNovo === '') {
+        redirecionar('perfil.php', 'Informe o novo login.', 'error');
+    }
+    if (db_um($conn, 'SELECT 1 FROM usuarios WHERE login = ? AND idusuario <> ?', 'si', [$loginNovo, $idusuario])) {
+        redirecionar('perfil.php', 'Este login já está em uso.', 'error');
+    }
+    db_exec($conn, 'UPDATE usuarios SET login = ? WHERE idusuario = ?', 'si', [$loginNovo, $idusuario]);
+    $_SESSION['login'] = $loginNovo;
+    redirecionar('perfil.php', 'Login alterado.');
 }
 
-function alterar_senha($conn, $idusuario, $senha_antiga, $senha_nova) {
-    $stmt = $conn->prepare("SELECT senha FROM usuarios WHERE idusuario = ?");
-    $stmt->bind_param("i", $idusuario);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $usuario = $result->fetch_assoc();
-
-        if (password_verify($senha_antiga, $usuario['senha'])) {
-            $senha_nova_hash = password_hash($senha_nova, PASSWORD_BCRYPT);
-            $stmt = $conn->prepare("UPDATE usuarios SET senha = ? WHERE idusuario = ?");
-            $stmt->bind_param("si", $senha_nova_hash, $idusuario);
-
-            if ($stmt->execute()) {
-                $_SESSION['msg'] = 'Senha alterada com sucesso!';
-                return true;
-            } else {
-                $_SESSION['msg'] = 'Erro ao alterar senha: ' . $stmt->error;
-                return false;
-            }
-        } else {
-            $_SESSION['msg'] = 'Senha Atual incorreta.';
-            return false;
-        }
-    } else {
-        $_SESSION['msg'] = 'Usuário não encontrado.';
-        return false;
+if ($action === 'alterar_senha') {
+    $senhaNova = (string) ($_POST['senha_nova'] ?? '');
+    if (!senha_confere($conn, $idusuario, (string) ($_POST['senha_atual'] ?? ''))) {
+        redirecionar('perfil.php', 'Senha atual incorreta.', 'error');
     }
+    if (mb_strlen($senhaNova) < SENHA_MIN_LEN) {
+        redirecionar('perfil.php', 'A nova senha deve ter pelo menos ' . SENHA_MIN_LEN . ' caracteres.', 'error');
+    }
+    db_exec($conn, 'UPDATE usuarios SET senha = ? WHERE idusuario = ?', 'si', [password_hash($senhaNova, PASSWORD_DEFAULT), $idusuario]);
+    redirecionar('perfil.php', 'Senha alterada.');
 }
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    csrf_verify_or_die();
-
-    $idusuario = intval($_POST['idusuario']);
-    $action = $_POST['action'];
-
-    // Checagem de autorização (IDOR): só permite alterar os próprios dados,
-    // a menos que o usuário logado seja da coordenação (tipo 2 ou 3).
-    if ($idusuario !== intval($_SESSION['idusuario']) && !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-        $_SESSION['msg'] = 'Você não tem permissão para alterar este usuário.';
-        header('Location: perfil.php');
-        exit();
-    }
-
-    $conn->begin_transaction();
-    try {
-        if ($action == 'alterar_dados_contato') {
-            $email = trim($_POST['email']);
-            $telefone = trim($_POST['telefone']);
-            alterar_dados_contato($conn, $idusuario, $email, $telefone);
-        } elseif ($action == 'alterar_login') {
-            $login_antigo = trim($_POST['login_antigo']);
-            $login_novo = trim($_POST['login_novo']);
-            alterar_login($conn, $idusuario, $login_antigo, $login_novo);
-        } elseif ($action == 'alterar_senha') {
-            $senha_antiga = trim($_POST['senha_antiga']);
-            $senha_nova = trim($_POST['senha_nova']);
-            alterar_senha($conn, $idusuario, $senha_antiga, $senha_nova);
-        } else {
-            $_SESSION['msg'] = 'Ação inválida.';
-        }
-        $conn->commit();
-    } catch (Exception $e) {
-        $conn->rollback();
-        $_SESSION['msg'] = 'Erro ao processar a solicitação: ' . $e->getMessage();
-    }
-
-    $conn->close();
-    header('Location: perfil.php');
-    exit();
-} else {
-    $_SESSION['msg'] = 'Requisição inválida.';
-    header('Location: perfil.php');
-    exit();
-}
+redirecionar('perfil.php', 'Ação inválida.', 'error');

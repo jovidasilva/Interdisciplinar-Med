@@ -1,330 +1,128 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
 
-if (empty($_SESSION["login"])) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Usuário não autenticado. Redirecionando para a página de login.",
-        "redirect" => str_repeat('../', 3) . "index.php"
-    ]);
-    exit();
-}
+$idunidade = (int) ($_GET['idunidade'] ?? 0);
+$unidade = db_um($conn, 'SELECT idunidade, nome_unidade, endereco_unidade FROM unidades WHERE idunidade = ?', 'i', [$idunidade])
+    ?? redirecionar('unidades.php', 'Unidade não encontrada.', 'error');
+$aba = in_array($_GET['aba'] ?? '', ['modulos', 'preceptores', 'departamentos'], true) ? $_GET['aba'] : 'modulos';
 
-if (!in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Acesso não autorizado.",
-        "redirect" => str_repeat('../', 3) . "index.php"
-    ]);
-    exit();
-}
+$modulosDentro = db_todos($conn, 'SELECT m.idmodulo, m.nome_modulo, m.periodo FROM unidades_modulos um JOIN modulos m ON m.idmodulo = um.idmodulo WHERE um.idunidade = ? ORDER BY m.periodo, m.nome_modulo', 'i', [$idunidade]);
+$modulosFora = db_todos($conn, 'SELECT m.idmodulo, m.nome_modulo, m.periodo FROM modulos m WHERE NOT EXISTS (SELECT 1 FROM unidades_modulos um WHERE um.idmodulo = m.idmodulo AND um.idunidade = ?) ORDER BY m.periodo, m.nome_modulo', 'i', [$idunidade]);
+$precDentro = db_todos($conn, 'SELECT u.idusuario, u.nome, u.registro FROM preceptores_unidades pu JOIN usuarios u ON u.idusuario = pu.idusuario WHERE pu.idunidade = ? ORDER BY u.nome', 'i', [$idunidade]);
+$precFora = db_todos($conn, 'SELECT u.idusuario, u.nome, u.registro, un.nome_unidade FROM usuarios u
+    LEFT JOIN preceptores_unidades pu ON pu.idusuario = u.idusuario LEFT JOIN unidades un ON un.idunidade = pu.idunidade
+    WHERE u.tipo IN (1, 3) AND u.ativo = 1 AND (pu.idunidade IS NULL OR pu.idunidade <> ?) ORDER BY (pu.idunidade IS NOT NULL), u.nome', 'i', [$idunidade]);
+$departamentos = db_todos($conn, 'SELECT d.iddepartamento, d.nome_departamento,
+        (SELECT GROUP_CONCAT(md.idmodulo) FROM modulos_departamentos md WHERE md.iddepartamento = d.iddepartamento) AS modulos
+    FROM departamentos d WHERE d.idunidade = ? ORDER BY d.nome_departamento', 'i', [$idunidade]);
 
-// Verificar se o ID da unidade foi passado na URL
-if (isset($_GET['idunidade']) && is_numeric($_GET['idunidade'])) {
-    $idunidade = intval($_GET['idunidade']);
-
-    // Buscar a unidade pelo ID
-    $stmt = $conn->prepare("SELECT idunidade, nome_unidade FROM unidades WHERE idunidade = ?");
-    $stmt->bind_param("i", $idunidade);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $unidade = $result->fetch_assoc();
-    } else {
-        echo json_encode(["success" => false, "message" => "Unidade não encontrada."]);
-        exit();
-    }
-
-    // Buscar todos os preceptores
-    $sqlPreceptores = "SELECT u.*, pu.idunidade, un.nome_unidade FROM usuarios u 
-                       LEFT JOIN preceptores_unidades pu ON u.idusuario = pu.idusuario 
-                       LEFT JOIN unidades un ON pu.idunidade = un.idunidade 
-                       WHERE u.tipo = 1";
-    $resPreceptores = $conn->query($sqlPreceptores);
-
-    // Buscar módulos associados e não associados
-    $modulosAssociados = $conn->query("SELECT m.idmodulo, m.nome_modulo FROM modulos m JOIN unidades_modulos um ON m.idmodulo = um.idmodulo WHERE um.idunidade = $idunidade");
-    $nummodulosAssociados = $modulosAssociados->num_rows;
-
-    $modulosNaoAssociados = $conn->query("SELECT idmodulo, nome_modulo FROM modulos WHERE idmodulo NOT IN (SELECT idmodulo FROM unidades_modulos WHERE idunidade = $idunidade)");
-    $nummodulosNaoAssociados = $modulosNaoAssociados->num_rows;
-} else {
-    echo json_encode(["success" => false, "message" => "ID da unidade não informado ou inválido."]);
-    exit();
+/** Card de lista com checkboxes que posta uma ação para acoes-unidades.php. */
+function lista_assoc(string $titulo, array $itens, string $campo, string $acao, string $botao, string $classeBotao, int $idunidade, string $aba, callable $rotulo, string $vazio): void
+{
+    $sel = 'sel-' . $acao;
+    ?>
+    <form method="POST" action="acoes-unidades.php" class="card" data-require-check="<?= e($campo) ?>[]">
+        <?= csrf_field() ?>
+        <input type="hidden" name="acao" value="<?= e($acao) ?>">
+        <input type="hidden" name="idunidade" value="<?= $idunidade ?>">
+        <input type="hidden" name="aba" value="<?= e($aba) ?>">
+        <div class="card-header">
+            <h2><?= e($titulo) ?> <span class="text-muted fw-normal">(<?= count($itens) ?>)</span></h2>
+            <?php if ($itens): ?><label class="small"><input type="checkbox" class="form-check-input me-1" data-select-all="<?= e($sel) ?>"> Todos</label><?php endif; ?>
+        </div>
+        <?php if (!$itens): ?>
+            <div class="card-body"><?= empty_state($vazio) ?></div>
+        <?php else: ?>
+            <ul class="check-list">
+                <?php foreach ($itens as $i): ?>
+                    <li><label><input type="checkbox" class="form-check-input <?= e($sel) ?>" name="<?= e($campo) ?>[]" value="<?= (int) ($i['idmodulo'] ?? $i['idusuario']) ?>"> <?= $rotulo($i) ?></label></li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="card-footer"><span></span><button class="btn btn-sm <?= e($classeBotao) ?>"><?= e($botao) ?></button></div>
+        <?php endif; ?>
+    </form>
+    <?php
 }
 
-// Associar ou desassociar preceptores e módulos via AJAX
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_verify_or_die();
+$rotuloModulo = fn($m) => e($m['nome_modulo']) . '<small>' . (int) $m['periodo'] . 'º período</small>';
 
-    $response = ["success" => false, "message" => ""];
-    $preceptoresSelecionados = $_POST['preceptores'] ?? [];
-    $modulosSelecionados = $_POST['modulos'] ?? [];
-    $idunidade = intval($_POST['idunidade'] ?? 0);
-    $acao = $_POST['acao'] ?? '';
-
-    if ($acao === 'associar' && !empty($modulosSelecionados)) {
-        foreach ($modulosSelecionados as $idModulo) {
-            // Associar módulo à unidade
-            $stmt = $conn->prepare("INSERT INTO unidades_modulos (idmodulo, idunidade) VALUES (?, ?)");
-            $stmt->bind_param("ii", $idModulo, $idunidade);
-            $stmt->execute();
-        }
-        $response["success"] = true;
-        $response["message"] = 'Módulos associados com sucesso!';
-    } elseif ($acao === 'desassociar' && !empty($modulosSelecionados)) {
-        foreach ($modulosSelecionados as $idModulo) {
-            // Desassociar módulo da unidade
-            $stmt = $conn->prepare("DELETE FROM unidades_modulos WHERE idmodulo = ? AND idunidade = ?");
-            $stmt->bind_param("ii", $idModulo, $idunidade);
-            $stmt->execute();
-        }
-        $response["success"] = true;
-        $response["message"] = 'Módulos desassociados com sucesso!';
-    } elseif ($acao === 'associar' && !empty($preceptoresSelecionados)) {
-        foreach ($preceptoresSelecionados as $idPreceptor) {
-            // Desassociar o preceptor de qualquer unidade anterior
-            $stmt = $conn->prepare("DELETE FROM preceptores_unidades WHERE idusuario = ?");
-            $stmt->bind_param("i", $idPreceptor);
-            $stmt->execute();
-
-            // Associar preceptor à nova unidade
-            $stmt = $conn->prepare("INSERT INTO preceptores_unidades (idusuario, idunidade) VALUES (?, ?)");
-            $stmt->bind_param("ii", $idPreceptor, $idunidade);
-            $stmt->execute();
-        }
-        $response["success"] = true;
-        $response["message"] = 'Preceptores associados com sucesso!';
-    } elseif ($acao === 'desassociar' && !empty($preceptoresSelecionados)) {
-        foreach ($preceptoresSelecionados as $idPreceptor) {
-            // Desassociar o preceptor de todas as unidades
-            $stmt = $conn->prepare("DELETE FROM preceptores_unidades WHERE idusuario = ?");
-            $stmt->bind_param("i", $idPreceptor);
-            $stmt->execute();
-
-            // Desassociar o preceptor de todos os módulos
-            $stmt = $conn->prepare("DELETE FROM preceptores_modulos WHERE idusuario = ?");
-            $stmt->bind_param("i", $idPreceptor);
-            $stmt->execute();
-        }
-        $response["success"] = true;
-        $response["message"] = 'Preceptores desassociados com sucesso!';
-    } else {
-        $response["message"] = 'Ação inválida ou nenhum item selecionado.';
-    }
-
-    echo json_encode($response);
-    exit();
-}
+layout_inicio($unidade['nome_unidade']);
+page_header($unidade['nome_unidade'], $unidade['endereco_unidade'] ?: 'Sem endereço cadastrado',
+    botao_voltar('unidades.php')
+    . '<a href="editar-unidades.php?idunidade=' . $idunidade . '" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Editar</a>'
+    . form_acao('acoes-unidades.php', ['acao' => 'excluir', 'idunidade' => $idunidade], '<i class="bi bi-trash"></i> Excluir', 'btn btn-outline-danger',
+        'Excluir esta unidade? Departamentos e associações dela também serão removidos.'));
 ?>
+<ul class="nav nav-underline mb-4">
+    <?php foreach (['modulos' => 'Módulos (' . count($modulosDentro) . ')', 'preceptores' => 'Preceptores (' . count($precDentro) . ')', 'departamentos' => 'Departamentos (' . count($departamentos) . ')'] as $k => $r): ?>
+        <li class="nav-item"><a class="nav-link<?= $aba === $k ? ' active' : '' ?>" href="?idunidade=<?= $idunidade ?>&aba=<?= $k ?>"<?= $aba === $k ? ' aria-current="page"' : '' ?>><?= e($r) ?></a></li>
+    <?php endforeach; ?>
+</ul>
 
-<style>
-    .container-card {
-        display: flex;
-        gap: 20px;
-    }
-
-    .card {
-        width: 800px;
-        padding: 10px;
-        margin: 10px;
-        overflow-y: auto;
-        max-height: 650px;
-    }
-</style>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
-        const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
-        checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
-    }
-
-    function submitForm(event, form) {
-        event.preventDefault();
-        const formData = $(form).serialize();
-        console.log('Dados do formulário:', formData);
-
-        $.ajax({
-            type: 'POST',
-            url: 'visualizar-unidade.php?idunidade=<?php echo $idunidade; ?>',
-            data: formData,
-            dataType: 'json',
-            success: function(response) {
-                console.log('Resposta do servidor:', response);
-                if (response.success) {
-                    alert(response.message);
-                    location.reload(); // Recarregar a página para refletir as mudanças
-                } else {
-                    alert(response.message || 'Ocorreu um erro ao processar sua solicitação.');
-                    if (response.redirect) {
-                        window.location.href = response.redirect;
-                    }
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Erro na solicitação AJAX:', error);
-                console.log('Status:', status);
-                console.log('Resposta completa:', xhr.responseText);
-                alert('Ocorreu um erro ao processar sua solicitação.');
-            }
-        });
-    }
-</script>
-
-<div class="container mt-3">
-        <h3>
-            <?php echo htmlspecialchars($unidade['nome_unidade']); ?>
-            <button class="btn btn-secondary" onclick="location.href='unidades.php'">Voltar</button>
-        </h3>
-        <div class="container-card">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Módulos Associados à Unidade</h5>
-                    <div class="form-check">
-                        <input type="checkbox" id="selectAllAssociados" class="form-check-input"
-                            onchange="toggleCheckboxes(this, 'modulo-associado')">
-                        <label for="selectAllAssociados" class="form-check-label">Selecionar Todos</label>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <form method="POST" onsubmit="submitForm(event, this)">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
-                        <input type="hidden" name="acao" value="desassociar">
-                        <?php if ($nummodulosAssociados > 0): ?>
-                            <?php while ($modulo = $modulosAssociados->fetch_assoc()): ?>
-                                <div class="form-check">
-                                    <input type="checkbox" name="modulos[]" value="<?php echo $modulo['idmodulo']; ?>"
-                                        class="form-check-input modulo-associado"
-                                        id="modulo-<?php echo $modulo['idmodulo']; ?>">
-                                    <label class="form-check-label" for="modulo-<?php echo $modulo['idmodulo']; ?>">
-                                        <?php echo htmlspecialchars($modulo['nome_modulo']); ?>
-                                    </label>
-                                </div>
-                            <?php endwhile; ?>
-                            <button type="submit" class="btn btn-danger mt-3">Desassociar Módulos</button>
-                        <?php else: ?>
-                            <p>Nenhum módulo associado.</p>
-                        <?php endif; ?>
-                    </form>
-                </div>
+<?php if ($aba === 'modulos'): ?>
+    <div class="assoc">
+        <?php lista_assoc('Oferecidos nesta unidade', $modulosDentro, 'modulos', 'desassociar_modulos', 'Remover da unidade', 'btn-outline-danger', $idunidade, $aba, $rotuloModulo, 'Nenhum módulo associado.'); ?>
+        <?php lista_assoc('Outros módulos', $modulosFora, 'modulos', 'associar_modulos', 'Associar à unidade', 'btn-primary', $idunidade, $aba, $rotuloModulo, 'Todos os módulos já estão nesta unidade.'); ?>
+    </div>
+<?php elseif ($aba === 'preceptores'): ?>
+    <div class="assoc">
+        <?php lista_assoc('Preceptores desta unidade', $precDentro, 'preceptores', 'desassociar_preceptores', 'Remover da unidade', 'btn-outline-danger', $idunidade, $aba,
+            fn($p) => e($p['nome']) . '<small>' . e($p['registro']) . '</small>', 'Nenhum preceptor associado.'); ?>
+        <?php lista_assoc('Outros preceptores', $precFora, 'preceptores', 'associar_preceptores', 'Trazer para esta unidade', 'btn-primary', $idunidade, $aba,
+            fn($p) => e($p['nome']) . '<small>' . ($p['nome_unidade'] ? 'em ' . e($p['nome_unidade']) : 'sem unidade') . '</small>', 'Não há outros preceptores ativos.'); ?>
+    </div>
+    <p class="small text-muted mt-3"><i class="bi bi-info-circle"></i> Cada preceptor pertence a uma unidade; trazê-lo para cá o remove da unidade anterior. Os módulos de cada preceptor são definidos em <a href="../listar-preceptor.php">Preceptores</a>.</p>
+<?php else: ?>
+    <form method="POST" action="acoes-unidades.php" class="card mb-4">
+        <div class="card-body d-flex flex-wrap gap-2 align-items-end">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="adicionar_departamento">
+            <input type="hidden" name="idunidade" value="<?= $idunidade ?>">
+            <input type="hidden" name="aba" value="departamentos">
+            <div class="flex-grow-1" style="max-width: 420px">
+                <label for="nome_departamento" class="form-label">Novo departamento</label>
+                <input type="text" name="nome_departamento" id="nome_departamento" class="form-control" maxlength="100" required placeholder="Ex.: Pronto-socorro">
             </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h5>Módulos Não Associados à Unidade</h5>
-                    <div class="form-check">
-                        <input type="checkbox" id="selectAllNaoAssociados" class="form-check-input"
-                            onchange="toggleCheckboxes(this, 'modulo-nao-associado')">
-                        <label for="selectAllNaoAssociados" class="form-check-label">Selecionar Todos</label>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <form method="POST" onsubmit="submitForm(event, this)">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
-                        <input type="hidden" name="acao" value="associar">
-                        <?php if ($nummodulosNaoAssociados > 0): ?>
-                            <?php while ($modulo = $modulosNaoAssociados->fetch_assoc()): ?>
-                                <div class="form-check">
-                                    <input type="checkbox" name="modulos[]" value="<?php echo $modulo['idmodulo']; ?>"
-                                        class="form-check-input modulo-nao-associado"
-                                        id="modulo-<?php echo $modulo['idmodulo']; ?>">
-                                    <label class="form-check-label" for="modulo-<?php echo $modulo['idmodulo']; ?>">
-                                        <?php echo htmlspecialchars($modulo['nome_modulo']); ?>
-                                    </label>
-                                </div>
-                            <?php endwhile; ?>
-                            <button type="submit" class="btn btn-primary mt-3">Associar Módulos</button>
-                        <?php else: ?>
-                            <p>Nenhum módulo disponível para associação.</p>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
+            <button class="btn btn-primary"><i class="bi bi-plus-lg"></i> Adicionar</button>
         </div>
-
-        <!-- Gerenciar Preceptores -->
-        <div class="container-card">
-            <!-- Preceptores Não Associados -->
-            <div class="card">
-                <div class="card-header">
-                    <h5>Preceptores Não Associados</h5>
-                    <?php
-                    // Resetar o ponteiro do resultado para reutilizá-lo
-                    mysqli_data_seek($resPreceptores, 0);
-
-                    $preceptoresNaoAssociados = [];
-                    while ($preceptor = $resPreceptores->fetch_assoc()) {
-                        if (is_null($preceptor['idunidade'])) {
-                            $preceptoresNaoAssociados[] = $preceptor;
-                        }
-                    }
-                    ?>
-                    <?php if (count($preceptoresNaoAssociados) > 0): ?>
-                        <div class="form-check">
-                            <input type="checkbox" id="selectAllNaoAssociadosPreceptores" class="form-check-input" onchange="toggleCheckboxes(this, 'preceptor-nao-associado')">
-                            <label for="selectAllNaoAssociadosPreceptores" class="form-check-label">Selecionar Todos</label>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="card-body">
-                    <form method="POST" onsubmit="submitForm(event, this)">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
-                        <input type="hidden" name="acao" value="associar">
-                        <?php if (count($preceptoresNaoAssociados) > 0): ?>
-                            <?php foreach ($preceptoresNaoAssociados as $preceptor): ?>
-                                <div class="form-check">
-                                    <input type="checkbox" name="preceptores[]" value="<?php echo $preceptor['idusuario']; ?>" class="form-check-input preceptor-nao-associado">
-                                    <label class="form-check-label"><?php echo htmlspecialchars($preceptor['nome']); ?></label>
-                                </div>
-                            <?php endforeach; ?>
-                            <button type="submit" class="btn btn-primary mt-3">Associar Preceptores</button>
-                        <?php else: ?>
-                            <p>Não há nenhum preceptor desassociado no momento.</p>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-
-                <!-- Preceptores Associados -->
-                <div class="card">
+    </form>
+    <?php if (!$departamentos): ?>
+        <div class="card"><div class="card-body"><?= empty_state('Nenhum departamento cadastrado nesta unidade.', 'bi-diagram-3') ?></div></div>
+    <?php endif; ?>
+    <div class="row g-3">
+        <?php foreach ($departamentos as $d): $marcados = array_map('intval', explode(',', (string) $d['modulos'])); ?>
+            <div class="col-lg-6">
+                <form method="POST" action="acoes-unidades.php" class="card h-100">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="acao" value="departamento_modulos">
+                    <input type="hidden" name="idunidade" value="<?= $idunidade ?>">
+                    <input type="hidden" name="iddepartamento" value="<?= (int) $d['iddepartamento'] ?>">
+                    <input type="hidden" name="aba" value="departamentos">
                     <div class="card-header">
-                        <h5>Preceptores Associados</h5>
-                        <div class="form-check">
-                            <input type="checkbox" id="selectAllAssociadosPreceptores" class="form-check-input" onchange="toggleCheckboxes(this, 'preceptor-associado')">
-                            <label for="selectAllAssociadosPreceptores" class="form-check-label">Selecionar Todos</label>
-                        </div>
+                        <h2><?= e($d['nome_departamento']) ?></h2>
+                        <button type="submit" form="excluirDep<?= (int) $d['iddepartamento'] ?>" class="btn btn-sm btn-outline-danger" aria-label="Excluir departamento"><i class="bi bi-trash"></i></button>
                     </div>
-                    <div class="card-body">
-                        <form method="POST" onsubmit="submitForm(event, this)">
-                            <?php echo csrf_field(); ?>
-                            <input type="hidden" name="idunidade" value="<?php echo $idunidade; ?>">
-                            <input type="hidden" name="acao" value="desassociar">
-                            <?php mysqli_data_seek($resPreceptores, 0); // Reset result set pointer ?>
-                            <?php if ($resPreceptores->num_rows > 0): ?>
-                                <?php while ($preceptor = $resPreceptores->fetch_assoc()): ?>
-                                    <?php if (!is_null($preceptor['idunidade']) && $preceptor['idunidade'] == $idunidade): ?>
-                                        <div class="form-check">
-                                            <input type="checkbox" name="preceptores[]" value="<?php echo $preceptor['idusuario']; ?>" class="form-check-input preceptor-associado">
-                                            <label class="form-check-label"><?php echo htmlspecialchars($preceptor['nome']); ?> - <?php echo htmlspecialchars($preceptor['nome_unidade']); ?></label>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php endwhile; ?>
-                                <button type="submit" class="btn btn-danger mt-3">Desassociar Preceptores</button>
-                            <?php else: ?>
-                                <p>Nenhum preceptor associado.</p>
-                            <?php endif; ?>
-                        </form>
-                    </div>
-                </div>
+                    <?php if (!$modulosDentro): ?>
+                        <div class="card-body text-muted small">Associe módulos à unidade para distribuí-los entre os departamentos.</div>
+                    <?php else: ?>
+                        <ul class="check-list">
+                            <?php foreach ($modulosDentro as $m): ?>
+                                <li><label><input type="checkbox" class="form-check-input" name="modulos[]" value="<?= (int) $m['idmodulo'] ?>" <?= in_array((int) $m['idmodulo'], $marcados, true) ? 'checked' : '' ?>> <?= $rotuloModulo($m) ?></label></li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <div class="card-footer"><span class="small text-muted">Módulos atendidos neste departamento</span><button class="btn btn-sm btn-primary">Salvar</button></div>
+                    <?php endif; ?>
+                </form>
+                <form id="excluirDep<?= (int) $d['iddepartamento'] ?>" method="POST" action="acoes-unidades.php" data-confirm="Excluir o departamento &quot;<?= e($d['nome_departamento']) ?>&quot;?">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="acao" value="excluir_departamento">
+                    <input type="hidden" name="idunidade" value="<?= $idunidade ?>">
+                    <input type="hidden" name="iddepartamento" value="<?= (int) $d['iddepartamento'] ?>">
+                    <input type="hidden" name="aba" value="departamentos">
+                </form>
             </div>
-        </div>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
+<?php layout_fim(); ?>

@@ -1,133 +1,74 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+
+$idmodulo = (int) ($_GET['idmodulo'] ?? 0);
+$modulo = db_um($conn, 'SELECT idmodulo, nome_modulo, periodo FROM modulos WHERE idmodulo = ?', 'i', [$idmodulo])
+    ?? redirecionar('modulos.php', 'Módulo não encontrado.', 'error');
+
+$matriculados = db_todos($conn, 'SELECT u.idusuario, u.nome, u.registro, u.ativo FROM modulos_alunos ma JOIN usuarios u ON u.idusuario = ma.idusuario
+    WHERE ma.idmodulo = ? ORDER BY u.nome', 'i', [$idmodulo]);
+$disponiveis = db_todos($conn, 'SELECT u.idusuario, u.nome, u.registro FROM usuarios u
+    WHERE u.tipo = 0 AND u.ativo = 1 AND u.periodo = ?
+      AND NOT EXISTS (SELECT 1 FROM modulos_alunos ma WHERE ma.idmodulo = ? AND ma.idusuario = u.idusuario)
+    ORDER BY u.nome', 'ii', [$modulo['periodo'], $idmodulo]);
+
+layout_inicio($modulo['nome_modulo']);
+page_header($modulo['nome_modulo'], $modulo['periodo'] . 'º período · Matrículas são criadas automaticamente ao gerar um ciclo de rodízio; use esta tela para ajustes.',
+    botao_voltar('modulos.php') . '<a href="editar-modulos.php?idmodulo=' . $idmodulo . '" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Editar</a>');
 ?>
-<?php
-if (isset($_GET['idmodulo'])) {
-    $idmodulo = intval($_GET['idmodulo']);
-
-    $stmt = $conn->prepare("SELECT nome_modulo, periodo FROM modulos WHERE idmodulo = ?");
-    $stmt->bind_param("i", $idmodulo);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $modulo = $result->fetch_assoc();
-    } else {
-        echo "Módulo não encontrado.";
-        exit();
-    }
-
-    $semestreAtual = $modulo['periodo'];
-
-    $alunosNaoAssociados = $conn->query("SELECT idusuario, nome FROM usuarios WHERE ativo = 1 AND tipo = 0 AND periodo = '$semestreAtual' AND idusuario NOT IN (SELECT idusuario FROM modulos_alunos WHERE idmodulo = $idmodulo)");
-    $numAlunosNaoAssociados = $alunosNaoAssociados->num_rows;
-
-    $alunosAssociados = $conn->query("SELECT u.idusuario, u.nome, u.registro FROM usuarios u JOIN modulos_alunos ma ON u.idusuario = ma.idusuario WHERE ma.idmodulo = $idmodulo");
-    $numAlunosAssociados = $alunosAssociados->num_rows;
-} else {
-    echo "ID do módulo não informado ou inválido.";
-    exit();
-}
-?>
-
-<style>
-    .container-card {
-        display: flex;
-        gap: 20px;
-    }
-
-    .card {
-        width: 800px;
-        padding: 10px;
-        margin: 10px;
-        overflow-y: auto;
-        max-height: 650px;
-    }
-</style>
-<script>
-    function toggleCheckboxes(selectAllCheckbox, checkboxClass) {
-        const checkboxes = document.querySelectorAll(`.${checkboxClass}`);
-        checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
-    }
-</script>
-
-<div class="container mt-3">
-        <h3>
-            <?php echo htmlspecialchars($modulo['nome_modulo']); ?> (Período: <?php echo htmlspecialchars($modulo['periodo']); ?>)
-            <button onclick="location.href='?page=upload-alunos&idmodulo=<?php echo $idmodulo; ?>'" class="btn btn-secondary">Enviar lista de alunos</button>
-            <button class="btn btn-secondary" onclick="location.href='?page=listar-modulos'">Voltar</button>
-        </h3>
-        <div class="container-card">
-            <form method="POST" action="desassociar-alunos.php?idmodulo=<?php echo $idmodulo; ?>">
-                <?php echo csrf_field(); ?>
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Alunos Matriculados no Módulo</h5>
-                    </div>
-                    <div class="card-body">
-                        <?php if ($numAlunosAssociados > 0): ?>
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" id="selectAll" onclick="toggleCheckboxes(this, 'aluno-associado')"> Selecionar Todos</th>
-                                        <th>Nome</th>
-                                        <th>RA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php while ($aluno = $alunosAssociados->fetch_assoc()): ?>
-                                        <tr>
-                                            <td><input type="checkbox" class="aluno-associado" name="alunosDesassociar[]" value="<?php echo htmlspecialchars($aluno['idusuario']); ?>"></td>
-                                            <td><?php echo htmlspecialchars($aluno['nome']); ?></td>
-                                            <td><?php echo htmlspecialchars($aluno['registro']); ?></td>
-                                        </tr>
-                                    <?php endwhile; ?>
-                                </tbody>
-                            </table>
-                            <button type="submit" class="btn btn-primary mt-3">Desassociar Aluno(s)</button>
-                        <?php else: ?>
-                            <p>Nenhum aluno encontrado.</p>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </form>
-
-            <div class="card">
-                <div class="card-header">
-                    <h5>Alunos Não Matriculados e Disponíveis</h5>
-                    <div class="form-check">
-                        <input type="checkbox" id="selectAllNaoAssociados" class="form-check-input" onchange="toggleCheckboxes(this, 'aluno-nao-associado')">
-                        <label for="selectAllNaoAssociados" class="form-check-label">Selecionar Todos</label>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="associar-alunos.php?idmodulo=<?php echo $idmodulo; ?>">
-                        <?php echo csrf_field(); ?>
-                        <?php if ($numAlunosNaoAssociados > 0): ?>
-                            <?php while ($aluno = $alunosNaoAssociados->fetch_assoc()): ?>
-                                <div class="form-check">
-                                    <input type="checkbox" name="alunos[]" value="<?php echo $aluno['idusuario']; ?>" class="form-check-input aluno-nao-associado" id="aluno-<?php echo $aluno['idusuario']; ?>">
-                                    <label class="form-check-label" for="aluno-<?php echo $aluno['idusuario']; ?>">
-                                        <?php echo htmlspecialchars($aluno['nome']); ?>
-                                    </label>
-                                </div>
-                            <?php endwhile; ?>
-                            <button type="submit" class="btn btn-primary mt-3">Associar Alunos</button>
-                        <?php else: ?>
-                            <p>Nenhum aluno disponível.</p>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
+<div class="assoc mb-4">
+    <form method="POST" action="acoes-modulos.php" class="card" data-require-check="alunos[]" data-confirm="Remover os alunos selecionados deste módulo?">
+        <?= csrf_field() ?>
+        <input type="hidden" name="acao" value="desmatricular">
+        <input type="hidden" name="idmodulo" value="<?= $idmodulo ?>">
+        <div class="card-header">
+            <h2>Matriculados <span class="text-muted fw-normal">(<?= count($matriculados) ?>)</span></h2>
+            <?php if ($matriculados): ?><label class="small"><input type="checkbox" class="form-check-input me-1" data-select-all="sel-mat"> Todos</label><?php endif; ?>
         </div>
+        <?php if (!$matriculados): ?>
+            <div class="card-body"><?= empty_state('Nenhum aluno matriculado.', 'bi-mortarboard') ?></div>
+        <?php else: ?>
+            <div class="px-3 pt-3"><input type="search" class="form-control form-control-sm" placeholder="Filtrar…" data-filter="#listaMat" aria-label="Filtrar matriculados"></div>
+            <ul class="check-list" id="listaMat">
+                <?php foreach ($matriculados as $a): ?>
+                    <li data-filter-item><label><input type="checkbox" class="form-check-input sel-mat" name="alunos[]" value="<?= (int) $a['idusuario'] ?>"> <?= e($a['nome']) ?><?= (int) $a['ativo'] ? '' : ' ' . badge_status('inativo') ?><small><?= e($a['registro']) ?></small></label></li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="card-footer"><span></span><button class="btn btn-sm btn-outline-danger"><i class="bi bi-dash-circle"></i> Remover selecionados</button></div>
+        <?php endif; ?>
+    </form>
+
+    <form method="POST" action="acoes-modulos.php" class="card" data-require-check="alunos[]">
+        <?= csrf_field() ?>
+        <input type="hidden" name="acao" value="matricular">
+        <input type="hidden" name="idmodulo" value="<?= $idmodulo ?>">
+        <div class="card-header">
+            <h2>Alunos do <?= (int) $modulo['periodo'] ?>º período fora do módulo <span class="text-muted fw-normal">(<?= count($disponiveis) ?>)</span></h2>
+            <?php if ($disponiveis): ?><label class="small"><input type="checkbox" class="form-check-input me-1" data-select-all="sel-disp"> Todos</label><?php endif; ?>
+        </div>
+        <?php if (!$disponiveis): ?>
+            <div class="card-body"><?= empty_state('Todos os alunos ativos do período já estão matriculados.', 'bi-check2-circle') ?></div>
+        <?php else: ?>
+            <div class="px-3 pt-3"><input type="search" class="form-control form-control-sm" placeholder="Filtrar…" data-filter="#listaDisp" aria-label="Filtrar disponíveis"></div>
+            <ul class="check-list" id="listaDisp">
+                <?php foreach ($disponiveis as $a): ?>
+                    <li data-filter-item><label><input type="checkbox" class="form-check-input sel-disp" name="alunos[]" value="<?= (int) $a['idusuario'] ?>"> <?= e($a['nome']) ?><small><?= e($a['registro']) ?></small></label></li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="card-footer"><span></span><button class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> Matricular selecionados</button></div>
+        <?php endif; ?>
+    </form>
+</div>
+
+<form method="POST" action="acoes-modulos.php" enctype="multipart/form-data" class="card">
+    <div class="card-header"><h2>Matricular por planilha</h2><span class="text-muted">CSV com o RA (ou nome) do aluno na primeira coluna; o cabeçalho é ignorado</span></div>
+    <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+        <?= csrf_field() ?>
+        <input type="hidden" name="acao" value="upload">
+        <input type="hidden" name="idmodulo" value="<?= $idmodulo ?>">
+        <input type="file" name="file" class="form-control" style="max-width: 420px" accept=".csv,text/csv" required aria-label="Arquivo CSV">
+        <button class="btn btn-outline-primary"><i class="bi bi-upload"></i> Enviar</button>
     </div>
+</form>
+<?php layout_fim(); ?>

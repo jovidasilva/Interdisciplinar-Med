@@ -1,54 +1,98 @@
 <?php
-session_start();
-if (empty($_SESSION["login"]) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    echo "<script>location.href='../../../index.php';</script>";
-    exit();
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+
+$filtroPeriodo = in_array((int) ($_GET['periodo'] ?? 0), PERIODOS, true) ? (int) $_GET['periodo'] : 0;
+
+$linhas = db_todos($conn, "SELECT c.idciclo, c.descricao, c.periodo, r.inicio, r.fim, m.nome_modulo, g.idgrupo, g.nome_grupo,
+        (SELECT COUNT(DISTINCT asg.idusuario) FROM grupos g2 JOIN subgrupos s2 ON s2.idgrupo = g2.idgrupo
+            JOIN alunos_subgrupos asg ON asg.idsubgrupo = s2.idsubgrupo WHERE g2.idciclo = c.idciclo) AS total_alunos
+    FROM rodizio_ciclos c
+    JOIN rodizios r ON r.idciclo = c.idciclo
+    JOIN modulos m ON m.idmodulo = r.idmodulo
+    JOIN rodizios_subgrupos rs ON rs.idrodizio = r.idrodizio
+    JOIN subgrupos sg ON sg.idsubgrupo = rs.idsubgrupo
+    JOIN grupos g ON g.idgrupo = sg.idgrupo
+    WHERE (? = 0 OR c.periodo = ?)
+    GROUP BY c.idciclo, c.descricao, c.periodo, r.inicio, r.fim, m.nome_modulo, g.idgrupo, g.nome_grupo
+    ORDER BY c.idciclo DESC, r.inicio, g.nome_grupo", 'ii', [$filtroPeriodo, $filtroPeriodo]);
+
+// Monta, por ciclo, a matriz grupo × janela => módulo.
+$ciclos = [];
+foreach ($linhas as $l) {
+    $c = &$ciclos[$l['idciclo']];
+    $c['descricao'] ??= $l['descricao'];
+    $c['periodo'] ??= (int) $l['periodo'];
+    $c['alunos'] ??= (int) $l['total_alunos'];
+    $c['janelas'][$l['inicio']] = $l['fim'];
+    $c['grupos'][$l['idgrupo']] = $l['nome_grupo'];
+    $c['celulas'][$l['idgrupo']][$l['inicio']] = $l['nome_modulo'];
+    unset($c);
 }
 
-include('../../../cfg/config.php');
+layout_inicio('Rodízios');
+page_header(
+    'Rodízios',
+    'Cada ciclo divide os alunos de um período em grupos que passam por todos os módulos escolhidos, um por janela de datas.',
+    '<a href="gerar-rodizios.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Gerar ciclo</a>'
+);
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
+<form method="GET" class="d-flex gap-2 align-items-center mb-3">
+    <label for="periodo" class="form-label mb-0 text-muted">Período</label>
+    <select name="periodo" id="periodo" class="form-select w-auto" onchange="this.form.submit()">
+        <option value="0">Todos</option>
+        <?php foreach (PERIODOS as $p): ?><option value="<?= $p ?>" <?= $p === $filtroPeriodo ? 'selected' : '' ?>><?= $p ?>º período</option><?php endforeach; ?>
+    </select>
+</form>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rodízios</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
+<?php if (!$ciclos): ?>
+    <div class="card"><div class="card-body">
+        <?= empty_state('Nenhum ciclo de rodízio gerado' . ($filtroPeriodo ? ' para este período' : '') . '.', 'bi-arrow-repeat', '<a href="gerar-rodizios.php" class="btn btn-primary">Gerar o primeiro ciclo</a>') ?>
+    </div></div>
+<?php endif; ?>
 
-<body>
-    <header>
-        <?php include('../../../includes/navbar.php'); ?>
-        <?php include('../../../includes/menu-lateral-coordenacao.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-3">
-            <div class="card">
-                <div class="card-body">
-                    <?php
-                    switch (@$_REQUEST['page']) {
-                        case 'gerar-rodizios':
-                            include('gerar-rodizios.php');
-                            break;
-                        default:
-                            include('visualizar-rodizios.php');
-                            break;
-                    }
-                    ?>
-                </div>
+<div class="gap-list">
+<?php foreach ($ciclos as $idciclo => $c):
+    ksort($c['janelas']);
+    asort($c['grupos']);
+    $inicio = array_key_first($c['janelas']);
+    $fim = end($c['janelas']); ?>
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2><?= e($c['descricao']) ?></h2>
+                <span class="text-muted"><?= $c['periodo'] ?>º período · <?= e(data_br($inicio)) ?> a <?= e(data_br($fim)) ?> · <?= count($c['grupos']) ?> grupos · <?= $c['alunos'] ?> alunos</span>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <?= badge_status(status_periodo($inicio, $fim)) ?>
+                <a href="../grupos/grupos.php?ciclo=<?= (int) $idciclo ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-people"></i> Grupos</a>
+                <?= form_acao('acoes-rodizios.php', ['acao' => 'excluir', 'idciclo' => $idciclo], '<i class="bi bi-trash"></i> Excluir', 'btn btn-sm btn-outline-danger',
+                    'Excluir este ciclo remove seus grupos, subgrupos, rodízios e os horários ligados a esses subgrupos. As matrículas e avaliações são mantidas.') ?>
             </div>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Grupo</th>
+                        <?php $n = 1; foreach ($c['janelas'] as $ini => $f): ?>
+                            <th>Janela <?= $n++ ?><br><span class="fw-normal text-lowercase"><?= e(data_br($ini)) ?> – <?= e(data_br($f)) ?></span></th>
+                        <?php endforeach; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($c['grupos'] as $idgrupo => $nome): ?>
+                        <tr>
+                            <td class="fw-semibold">Grupo <?= e($nome) ?></td>
+                            <?php foreach (array_keys($c['janelas']) as $ini): ?>
+                                <td><?= e($c['celulas'][$idgrupo][$ini] ?? '—') ?></td>
+                            <?php endforeach; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-
-</html>
+    </div>
+<?php endforeach; ?>
+</div>
+<?php layout_fim(); ?>

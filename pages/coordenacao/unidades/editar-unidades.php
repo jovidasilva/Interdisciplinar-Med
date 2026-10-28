@@ -1,45 +1,36 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
-?>
-<h1>Editar Módulo</h1>
-<?php
-$sql = "SELECT * FROM unidades WHERE idunidade=" . intval($_REQUEST['idunidade']);
-$res = $conn->query($sql);
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
 
-if (!$res) {
-    error_log("Erro na consulta (editar-unidades.php): " . $conn->error);
-    die("Erro ao processar a consulta. Tente novamente mais tarde.");
+$idunidade = (int) ($_GET['idunidade'] ?? 0);
+$unidade = ['nome_unidade' => '', 'endereco_unidade' => ''];
+if ($idunidade) {
+    $unidade = db_um($conn, 'SELECT nome_unidade, endereco_unidade FROM unidades WHERE idunidade = ?', 'i', [$idunidade])
+        ?? redirecionar('unidades.php', 'Unidade não encontrada.', 'error');
 }
+$voltar = $idunidade ? 'visualizar-unidade.php?idunidade=' . $idunidade : 'unidades.php';
 
-$row = $res->fetch_object();
-if (!$row) {
-    die("Módulo não encontrado.");
-}
+$titulo = $idunidade ? 'Editar unidade' : 'Nova unidade';
+layout_inicio($titulo);
+page_header($titulo, '', botao_voltar($voltar));
 ?>
-<form action="acoes-unidades.php" method="POST">
-    <?php echo csrf_field(); ?>
-    <input type="hidden" name="acao" value="editar">
-    <input type="hidden" name="idunidade" value="<?php echo intval($row->idunidade); ?>">
-    <div class="mb-3">
-        <label>Nome da unidade</label>
-        <input type="text" name="nome_unidade" value="<?php echo htmlspecialchars($row->nome_unidade); ?>" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <label>Endereco</label>
-        <input type="text" name="endereco_unidade" value="<?php echo htmlspecialchars($row->endereco_unidade); ?>" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <button type="submit" class="btn btn-success">Enviar</button>
-        <a href="?page=listar-unidades" class="btn btn-secondary">Voltar</a>
+<form action="acoes-unidades.php" method="POST" class="card form-narrow">
+    <div class="card-body">
+        <?= csrf_field() ?>
+        <input type="hidden" name="acao" value="salvar">
+        <input type="hidden" name="idunidade" value="<?= $idunidade ?>">
+        <div class="mb-3">
+            <label for="nome_unidade" class="form-label">Nome da unidade</label>
+            <input type="text" name="nome_unidade" id="nome_unidade" class="form-control" maxlength="90" value="<?= e($unidade['nome_unidade']) ?>" required autofocus>
+        </div>
+        <div class="mb-0">
+            <label for="endereco_unidade" class="form-label">Endereço</label>
+            <input type="text" name="endereco_unidade" id="endereco_unidade" class="form-control" maxlength="90" value="<?= e($unidade['endereco_unidade']) ?>">
+        </div>
+        <div class="form-actions">
+            <a href="<?= e($voltar) ?>" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check2"></i> Salvar</button>
+        </div>
     </div>
 </form>
+<?php layout_fim(); ?>

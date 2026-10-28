@@ -1,49 +1,40 @@
 <?php
-session_start();
-
-include('../cfg/config.php');
-require_once __DIR__ . '/../includes/csrf.php';
+require_once __DIR__ . '/../includes/app.php';
 require_once __DIR__ . '/../includes/rate-limit.php';
 
-csrf_verify_or_die();
+exigir_post();
 
-$login = $_POST['login'];
-$senha = $_POST['senha'];
+$login = trim((string) ($_POST['login'] ?? ''));
+$senha = (string) ($_POST['senha'] ?? '');
+
+if ($login === '' || $senha === '') {
+    redirecionar('../index.php', 'Informe login e senha.', 'error');
+}
 
 $bloqueadoAte = login_esta_bloqueado($conn, $login);
 if ($bloqueadoAte !== null) {
     $minutos = login_minutos_restantes($bloqueadoAte);
-    echo "<script>location.href='../index.php?alert=3&min=" . intval($minutos) . "';</script>";
-    exit();
+    redirecionar('../index.php', "Muitas tentativas de login. Tente novamente em {$minutos} minuto(s).", 'warning');
 }
 
-$stmt = $conn->prepare("SELECT * FROM usuarios WHERE login = ?");
-$stmt->bind_param("s", $login);
-$stmt->execute();
-$res = $stmt->get_result();
-$row = $res->fetch_object();
+$usuario = db_um($conn, 'SELECT idusuario, nome, senha, tipo, ativo FROM usuarios WHERE login = ?', 's', [$login]);
 
-if ($row && password_verify($senha, $row->senha)) {
-    login_registrar_sucesso($conn, $login);
-
-    $_SESSION["login"] = $login;
-    $_SESSION["nome"] = $row->nome;
-    $_SESSION["tipo"] = $row->tipo;
-    $_SESSION["idusuario"] = $row->idusuario;
-
-    if ($row->tipo == 0) {
-        echo "<script>location.href='../pages/aluno/home.php';</script>";
-    } elseif ($row->tipo == 1) {
-        echo "<script>location.href='../pages/preceptor/home.php';</script>";
-    } elseif ($row->tipo == 2 || $row->tipo == 3) {
-        echo "<script>location.href='../pages/coordenacao/home.php';</script>";
-    } else {
-        echo "<script>location.href='novocadastro.php';</script>";
-    }
-} else {
+if (!$usuario || !password_verify($senha, (string) $usuario['senha'])) {
     login_registrar_falha($conn, $login);
-    echo "<script>location.href='../index.php?alert=2';</script>";
+    redirecionar('../index.php', 'Login ou senha incorretos.', 'error');
 }
 
-$stmt->close();
-$conn->close();
+if ((int) $usuario['ativo'] !== 1) {
+    redirecionar('../index.php', 'Sua conta está desativada. Procure a coordenação.', 'warning');
+}
+
+login_registrar_sucesso($conn, $login);
+
+// Novo ID de sessão a cada login (evita fixação de sessão).
+session_regenerate_id(true);
+$_SESSION['login'] = $login;
+$_SESSION['nome'] = $usuario['nome'];
+$_SESSION['tipo'] = (int) $usuario['tipo'];
+$_SESSION['idusuario'] = (int) $usuario['idusuario'];
+
+redirecionar(home_do_usuario());

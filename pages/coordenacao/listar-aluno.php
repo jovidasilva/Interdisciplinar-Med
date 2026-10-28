@@ -1,141 +1,59 @@
 <?php
-session_start();
-if (empty($_SESSION["login"]) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    echo "<script>location.href='../../index.php';</script>";
-    exit();
-}
-include('../../cfg/config.php');
+require_once __DIR__ . '/../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+
+$busca = trim((string) ($_GET['q'] ?? ''));
+$periodo = in_array((int) ($_GET['periodo'] ?? 0), PERIODOS, true) ? (int) $_GET['periodo'] : 0;
+$like = '%' . $busca . '%';
+$filtro = 'u.tipo = 0 AND (u.nome LIKE ? OR u.registro LIKE ? OR u.email LIKE ?) AND (? = 0 OR u.periodo = ?)';
+$params = [$like, $like, $like, $periodo, $periodo];
+
+$total = (int) db_um($conn, "SELECT COUNT(*) AS n FROM usuarios u WHERE $filtro", 'sssii', $params)['n'];
+[$pagina, $offset, $totalPaginas] = paginar($total);
+
+// Subgrupo do ciclo mais recente do aluno e média das avaliações.
+$alunos = db_todos($conn, "SELECT u.idusuario, u.nome, u.registro, u.email, u.telefone, u.ativo, u.periodo,
+        (SELECT sg.nome_subgrupo FROM alunos_subgrupos asg JOIN subgrupos sg ON sg.idsubgrupo = asg.idsubgrupo JOIN grupos g ON g.idgrupo = sg.idgrupo
+            WHERE asg.idusuario = u.idusuario ORDER BY g.idciclo DESC LIMIT 1) AS subgrupo,
+        (SELECT AVG(a.nota) FROM avaliacoes a WHERE a.idaluno = u.idusuario) AS media
+    FROM usuarios u WHERE $filtro ORDER BY u.nome LIMIT 20 OFFSET ?", 'sssiii', array_merge($params, [$offset]));
+
+layout_inicio('Alunos');
+page_header('Alunos', 'Situação dos alunos no internato. Para aprovar, mudar período ou desativar, use a tela de Usuários.',
+    '<a href="usuarios/usuarios.php?tipo=0" class="btn btn-outline-secondary"><i class="bi bi-person-gear"></i> Editar em Usuários</a>');
 ?>
-
-<!DOCTYPE html>
-<html lang="pt-br">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Alunos</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
-
-<body>
-    <?php
-    function ativoTexto($ativo) {
-        switch ($ativo) {
-            case '0':
-                return 'Inativo';
-            case '1':
-                return 'Ativo';
-            default:
-                return 'Não definido';
-        }
-    }
-    ?>
-    <header>
-        <?php include('../../includes/navbar.php'); ?>
-        <?php include('../../includes/menu-lateral-coordenacao.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-3">
-            <div class="card">
-                <div class="card-body">
-                    <h3>Lista de Alunos</h3>
-                    <table class="table table-striped table-secondary table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>RA</th>
-                                <th>Status</th>
-                                <th>Email</th>
-                                <th>Telefone</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $porPagina = 20;
-                            $pagina = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
-                            $offset = ($pagina - 1) * $porPagina;
-
-                            $sqlCount = "SELECT COUNT(*) AS total FROM usuarios WHERE tipo = 0";
-                            $resCount = $conn->query($sqlCount);
-                            $totalRegistros = $resCount ? (int) $resCount->fetch_assoc()['total'] : 0;
-                            $totalPaginas = max(1, (int) ceil($totalRegistros / $porPagina));
-                            if ($pagina > $totalPaginas) {
-                                $pagina = $totalPaginas;
-                                $offset = ($pagina - 1) * $porPagina;
-                            }
-
-                            $sql = "SELECT * FROM usuarios WHERE tipo = 0 LIMIT ? OFFSET ?";
-                            $stmt = $conn->prepare($sql);
-
-                            if (!$stmt) {
-                                error_log("Erro na consulta (listar-aluno.php): " . $conn->error);
-                                die("Erro ao processar a consulta. Tente novamente mais tarde.");
-                            }
-
-                            $stmt->bind_param("ii", $porPagina, $offset);
-                            $stmt->execute();
-                            $res = $stmt->get_result();
-
-                            $qtd = $res->num_rows;
-
-                            if ($qtd > 0) {
-                                while ($row = $res->fetch_object()) {
-                                    echo "<tr>";
-                                    echo "<td>" . htmlspecialchars($row->nome) . "</td>";
-                                    echo "<td>" . htmlspecialchars($row->registro) . "</td>";
-                                    echo "<td>" . ativoTexto($row->ativo) . "</td>";
-                                    echo "<td>" . htmlspecialchars($row->email) . "</td>";
-                                    echo "<td>" . htmlspecialchars($row->telefone) . "</td>";
-                                    echo "</tr>";
-                                }
-                            } else {
-                                if ($totalRegistros === 0) {
-                                    echo "<tr><td colspan='5'>Nenhum aluno encontrado.</td></tr>";
-                                } else {
-                                    echo "<tr><td colspan='5'>Nenhum aluno encontrado nesta página. <a href='?" . http_build_query(array_merge($_GET, ['pagina' => 1])) . "'>Voltar à primeira página</a>.</td></tr>";
-                                }
-                            }
-                            ?>
-                        </tbody>
-                    </table>
-
-                    <?php if ($totalPaginas > 1): ?>
-                        <nav aria-label="Paginação de alunos">
-                            <ul class="pagination justify-content-center">
-                                <?php
-                                $paramsAnterior = $_GET;
-                                $paramsAnterior['pagina'] = max(1, $pagina - 1);
-                                $paramsProxima = $_GET;
-                                $paramsProxima['pagina'] = min($totalPaginas, $pagina + 1);
-                                ?>
-                                <li class="page-item <?php echo $pagina <= 1 ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="?<?php echo http_build_query($paramsAnterior); ?>">Anterior</a>
-                                </li>
-                                <?php for ($p = 1; $p <= $totalPaginas; $p++): ?>
-                                    <?php $paramsP = $_GET; $paramsP['pagina'] = $p; ?>
-                                    <li class="page-item <?php echo $p === $pagina ? 'active' : ''; ?>">
-                                        <a class="page-link" href="?<?php echo http_build_query($paramsP); ?>"><?php echo $p; ?></a>
-                                    </li>
-                                <?php endfor; ?>
-                                <li class="page-item <?php echo $pagina >= $totalPaginas ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="?<?php echo http_build_query($paramsProxima); ?>">Próxima</a>
-                                </li>
-                            </ul>
-                        </nav>
-                    <?php endif; ?>
-                </div>
-            </div>
+<form method="GET" class="d-flex flex-wrap gap-2 mb-3" role="search">
+    <div class="input-group" style="max-width: 360px">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="search" name="q" class="form-control" placeholder="Nome, RA ou e-mail" value="<?= e($busca) ?>">
+    </div>
+    <select name="periodo" class="form-select w-auto" onchange="this.form.submit()" aria-label="Período">
+        <option value="0">Todos os períodos</option>
+        <?php foreach (PERIODOS as $p): ?><option value="<?= $p ?>" <?= $p === $periodo ? 'selected' : '' ?>><?= $p ?>º período</option><?php endforeach; ?>
+    </select>
+</form>
+<div class="card">
+    <?php if (!$alunos): ?>
+        <div class="card-body"><?= empty_state('Nenhum aluno encontrado.', 'bi-mortarboard') ?></div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Aluno</th><th>RA</th><th>Período</th><th>Subgrupo atual</th><th class="text-end">Média</th><th>Status</th></tr></thead>
+                <tbody>
+                    <?php foreach ($alunos as $a): ?>
+                        <tr>
+                            <td><span class="fw-medium"><?= e($a['nome']) ?></span><div class="small text-muted"><?= e($a['email'] ?: '—') ?> · <?= e($a['telefone'] ?: '—') ?></div></td>
+                            <td><?= e($a['registro'] ?: '—') ?></td>
+                            <td><?= $a['periodo'] ? (int) $a['periodo'] . 'º' : '<span class="status status-warning">sem período</span>' ?></td>
+                            <td><?= $a['subgrupo'] ? '<span class="chip">' . e($a['subgrupo']) . '</span>' : '<span class="text-muted">—</span>' ?></td>
+                            <td class="text-end"><?= $a['media'] !== null ? e(number_format((float) $a['media'], 2, ',', '.')) : '<span class="text-muted">—</span>' ?></td>
+                            <td><?= badge_status((int) $a['ativo'] ? 'ativo' : 'inativo') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-
-</html>
+    <?php endif; ?>
+</div>
+<?= paginacao($pagina, $totalPaginas) ?>
+<?php layout_fim(); ?>

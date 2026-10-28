@@ -1,242 +1,81 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+exigir_post();
 
-function checkLogin() {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-    if (empty($_SESSION["login"])) {
-        echo "<script>location.href='../../index.php';</script>";
-        exit();
-    }
+$acao = $_POST['acao'] ?? '';
+
+if ($acao === 'excluir') {
+    db_exec($conn, 'DELETE FROM horarios WHERE idhorario = ?', 'i', [(int) ($_POST['idhorario'] ?? 0)]);
+    redirecionar('horarios.php', 'Horário excluído.');
 }
 
-function getHorarioData($conn, $idHorario) {
-    $query = "SELECT h.*, d.nome_departamento, m.nome_modulo, sg.nome_subgrupo, u.nome AS preceptor_nome 
-              FROM horarios h
-              LEFT JOIN departamentos d ON h.iddepartamento = d.iddepartamento
-              LEFT JOIN modulos m ON h.idmodulo = m.idmodulo
-              LEFT JOIN subgrupos sg ON h.idsubgrupo = sg.idsubgrupo
-              LEFT JOIN usuarios u ON h.idpreceptor = u.idusuario
-              WHERE h.idhorario = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idHorario);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    return $result->fetch_assoc();
+if ($acao !== 'salvar') {
+    redirecionar('horarios.php', 'Ação inválida.', 'error');
 }
 
-function saveOrUpdateHorario($conn, $data) {
-    $idHorario = $data['idHorario'] ?? null;
-    $idUnidade = $data['idUnidade'];
-    $idModulo = $data['idModulo'];
-    $subgrupo = $data['subgrupo'];
-    $idPreceptor = $data['idPreceptor'];
-    $horaInicio = $data['horaInicio'];
-    $horaFim = $data['horaFim'];
-    $diaSemana = $data['diaSemana'];
-    $idDepartamento = $data['idDepartamento'];
+$h = [
+    'idhorario' => (int) ($_POST['idhorario'] ?? 0),
+    'idunidade' => (int) ($_POST['idunidade'] ?? 0),
+    'iddepartamento' => (int) ($_POST['iddepartamento'] ?? 0) ?: null,
+    'idmodulo' => (int) ($_POST['idmodulo'] ?? 0),
+    'idsubgrupo' => (int) ($_POST['idsubgrupo'] ?? 0),
+    'idpreceptor' => (int) ($_POST['idpreceptor'] ?? 0),
+    'dia_semana' => (string) ($_POST['dia_semana'] ?? ''),
+    'hora_inicio' => (string) ($_POST['hora_inicio'] ?? ''),
+    'hora_fim' => (string) ($_POST['hora_fim'] ?? ''),
+    'local' => trim((string) ($_POST['local'] ?? '')) ?: null,
+];
+$voltar = 'preencher-horario.php' . ($h['idhorario'] ? '?id=' . $h['idhorario'] : '');
 
-    // Verificar se a hora de término é depois da hora de início
-    if (strtotime($horaFim) <= strtotime($horaInicio)) {
-        return ['success' => false, 'message' => 'A hora de fim deve ser posterior à hora de início.'];
-    }
+function falhar(string $msg, array $h, string $voltar): never
+{
+    $_SESSION['form_horario'] = $h;
+    redirecionar($voltar, $msg, 'error');
+}
 
-    // Verificar se um horário semelhante já existe
-    $query = "SELECT idhorario FROM horarios 
-              WHERE idunidade = ? AND idmodulo = ? AND dia_semana = ? AND hora_inicio = ? AND hora_fim = ? AND idhorario <> ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("iisssi", $idUnidade, $idModulo, $diaSemana, $horaInicio, $horaFim, $idHorario);
-    $stmt->execute();
-    $result = $stmt->get_result();
+$horaValida = fn($t) => (bool) preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $t);
+if (!in_array($h['dia_semana'], DIAS_SEMANA, true) || !$horaValida($h['hora_inicio']) || !$horaValida($h['hora_fim'])) {
+    falhar('Informe dia e horários válidos.', $h, $voltar);
+}
+if ($h['hora_fim'] <= $h['hora_inicio']) {
+    falhar('A hora de fim deve ser depois da hora de início.', $h, $voltar);
+}
 
-    if ($result->num_rows > 0) {
-        return ['success' => false, 'message' => 'Um horário semelhante já existe.'];
-    }
-
-    if ($idHorario) {
-        // Atualizar o horário existente
-        $sql = "UPDATE horarios 
-                SET idunidade = ?, idmodulo = ?, idpreceptor = ?, dia_semana = ?, hora_inicio = ?, hora_fim = ?, idsubgrupo = ?, iddepartamento = ? 
-                WHERE idhorario = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("iiisssiii", $idUnidade, $idModulo, $idPreceptor, $diaSemana, $horaInicio, $horaFim, $subgrupo, $idDepartamento, $idHorario);
-    } else {
-        // Inserir um novo horário
-        $sql = "INSERT INTO horarios (idunidade, idmodulo, idpreceptor, dia_semana, hora_inicio, hora_fim, idsubgrupo, iddepartamento) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("iiisssii", $idUnidade, $idModulo, $idPreceptor, $diaSemana, $horaInicio, $horaFim, $subgrupo, $idDepartamento);
-    }
-
-    if ($stmt->execute()) {
-        return ['success' => true, 'message' => ' Novo horário inserido com sucesso!'];
-    } else {
-        return ['success' => false, 'message' => 'Erro ao inserir novo horário: ' . $stmt->error];
+// Coerência entre as escolhas (o formulário já filtra, mas o servidor confere).
+$checagens = [
+    ['SELECT 1 FROM unidades_modulos WHERE idunidade = ? AND idmodulo = ?', 'ii', [$h['idunidade'], $h['idmodulo']], 'O módulo não é oferecido nessa unidade.'],
+    ['SELECT 1 FROM preceptores_modulos pm JOIN preceptores_unidades pu ON pu.idusuario = pm.idusuario WHERE pm.idusuario = ? AND pm.idmodulo = ? AND pu.idunidade = ?', 'iii',
+        [$h['idpreceptor'], $h['idmodulo'], $h['idunidade']], 'O preceptor precisa estar nessa unidade e nesse módulo.'],
+    ['SELECT 1 FROM rodizios_subgrupos rs JOIN rodizios r ON r.idrodizio = rs.idrodizio WHERE rs.idsubgrupo = ? AND r.idmodulo = ?', 'ii',
+        [$h['idsubgrupo'], $h['idmodulo']], 'Esse subgrupo não tem rodízio nesse módulo.'],
+];
+if ($h['iddepartamento']) {
+    $checagens[] = ['SELECT 1 FROM departamentos WHERE iddepartamento = ? AND idunidade = ?', 'ii', [$h['iddepartamento'], $h['idunidade']], 'O departamento não pertence à unidade.'];
+}
+foreach ($checagens as [$sql, $tipos, $params, $msg]) {
+    if (!db_um($conn, $sql, $tipos, $params)) {
+        falhar($msg, $h, $voltar);
     }
 }
 
-function getDepartamentos($conn, $idUnidade) {
-    $query = "SELECT DISTINCT iddepartamento, nome_departamento FROM departamentos WHERE idunidade = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idUnidade);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $departamentos = array();
-    while ($row = $result->fetch_assoc()) {
-        $departamentos[] = $row;
-    }
-
-    return json_encode($departamentos);
+// Conflito de agenda: mesmo preceptor ou mesmo subgrupo com horário sobreposto no mesmo dia.
+$conflito = db_um($conn, "SELECT h.hora_inicio, h.hora_fim, h.idpreceptor, sg.nome_subgrupo, m.nome_modulo
+    FROM horarios h JOIN subgrupos sg ON sg.idsubgrupo = h.idsubgrupo JOIN modulos m ON m.idmodulo = h.idmodulo
+    WHERE h.dia_semana = ? AND h.hora_inicio < ? AND h.hora_fim > ? AND h.idhorario <> ?
+      AND (h.idpreceptor = ? OR h.idsubgrupo = ?)
+    LIMIT 1", 'sssiii', [$h['dia_semana'], $h['hora_fim'], $h['hora_inicio'], $h['idhorario'], $h['idpreceptor'], $h['idsubgrupo']]);
+if ($conflito) {
+    $quem = (int) $conflito['idpreceptor'] === $h['idpreceptor'] ? 'O preceptor já tem' : 'O subgrupo ' . $conflito['nome_subgrupo'] . ' já tem';
+    falhar(sprintf('%s atividade (%s, %s–%s) nesse horário de %s.', $quem, $conflito['nome_modulo'], hora_curta($conflito['hora_inicio']), hora_curta($conflito['hora_fim']), $h['dia_semana']), $h, $voltar);
 }
 
-function getModulos($conn, $idDepartamento) {
-    $query = "SELECT DISTINCT m.idmodulo, m.nome_modulo 
-              FROM modulos m 
-              JOIN modulos_departamentos md ON m.idmodulo = md.idmodulo 
-              WHERE md.iddepartamento = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idDepartamento);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $modulos = array();
-    while ($row = $result->fetch_assoc()) {
-        $modulos[] = $row;
-    }
-
-    return json_encode($modulos);
+$valores = [$h['idunidade'], $h['iddepartamento'], $h['idmodulo'], $h['idsubgrupo'], $h['idpreceptor'], $h['dia_semana'], $h['hora_inicio'], $h['hora_fim'], $h['local']];
+if ($h['idhorario']) {
+    db_exec($conn, 'UPDATE horarios SET idunidade = ?, iddepartamento = ?, idmodulo = ?, idsubgrupo = ?, idpreceptor = ?, dia_semana = ?, hora_inicio = ?, hora_fim = ?, local = ?
+        WHERE idhorario = ?', 'iiiiissssi', array_merge($valores, [$h['idhorario']]));
+    redirecionar('horarios.php', 'Horário atualizado.');
 }
-
-function getSubgrupos($conn, $idModulo) {
-    $query = "SELECT DISTINCT sg.idsubgrupo, sg.nome_subgrupo 
-              FROM subgrupos sg
-              JOIN rodizios_subgrupos rs ON sg.idsubgrupo = rs.idsubgrupo
-              JOIN rodizios r ON rs.idrodizio = r.idrodizio
-              WHERE r.idmodulo = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idModulo);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $subgrupos = array();
-    while ($row = $result->fetch_assoc()) {
-        $subgrupos[] = $row;
-    }
-
-    return json_encode($subgrupos);
-}
-
-function getPreceptores($conn, $idModulo, $idUnidade) {
-    $query = "SELECT DISTINCT u.idusuario, u.nome 
-              FROM usuarios u 
-              JOIN preceptores_modulos pm ON u.idusuario = pm.idusuario 
-              JOIN preceptores_unidades pu ON u.idusuario = pu.idusuario 
-              WHERE pm.idmodulo = ? AND pu.idunidade = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ii", $idModulo, $idUnidade);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $preceptores = array();
-    while ($row = $result->fetch_assoc()) {
-        $preceptores[] = $row;
-    }
-
-    return json_encode($preceptores);
-}
-
-// função para unidade, departamento, modulo, subgrupo e preceptor
-function getUnidades($conn) {
-    $query = "SELECT idunidade, nome_unidade FROM unidades";
-    $result = $conn->query($query);
-
-    $unidades = array();
-    while ($row = $result->fetch_assoc()) {
-        $unidades[] = $row;
-    }
-
-    return $unidades;
-}
-
-function getDepartamentosByUnidade($conn, $idUnidade) {
-    $query = "SELECT iddepartamento, nome_departamento FROM departamentos WHERE idunidade = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idUnidade);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $departamentos = array();
-    while ($row = $result->fetch_assoc()) {
-        $departamentos[] = $row;
-    }
-
-    return $departamentos;
-}
-
-function getModulosByDepartamento($conn, $idDepartamento) {
-    $query = "SELECT m.idmodulo, m.nome_modulo 
-              FROM modulos m 
-              JOIN modulos_departamentos md ON m.idmodulo = md.idmodulo 
-              WHERE md.iddepartamento = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idDepartamento);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $modulos = array();
-    while ($row = $result->fetch_assoc()) {
-        $modulos[] = $row;
-    }
-
-    return $modulos;
-}
-
-function getSubgruposByModulo($conn, $idModulo) {
-    $query = "SELECT sg.idsubgrupo, sg.nome_subgrupo 
-              FROM subgrupos sg
-              JOIN rodizios_subgrupos rs ON sg.idsubgrupo = rs.idsubgrupo
-              JOIN rodizios r ON rs.idrodizio = r.idrodizio
-              WHERE r.idmodulo = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $idModulo);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $subgrupos = array();
-    while ($row = $result->fetch_assoc()) {
-        $subgrupos[] = $row;
-    }
-
-    return $subgrupos;
-}
-
-function getPreceptoresByModuloUnidade($conn, $idModulo, $idUnidade) {
-    $query = "SELECT DISTINCT u.idusuario, u.nome 
-              FROM usuarios u 
-              JOIN preceptores_modulos pm ON u.idusuario = pm.idusuario 
-              JOIN preceptores_unidades pu ON u.idusuario = pu.idusuario 
-              WHERE pm.idmodulo = ? AND pu.idunidade = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ii", $idModulo, $idUnidade);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $preceptores = array();
-    while ($row = $result->fetch_assoc()) {
-        $preceptores[] = $row;
-    }
-
-    return $preceptores;
-}
-?>
+db_exec($conn, 'INSERT INTO horarios (idunidade, iddepartamento, idmodulo, idsubgrupo, idpreceptor, dia_semana, hora_inicio, hora_fim, local)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 'iiiiissss', $valores);
+redirecionar('horarios.php', 'Horário cadastrado.');

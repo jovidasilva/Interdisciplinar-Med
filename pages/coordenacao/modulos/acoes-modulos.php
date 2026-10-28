@@ -1,82 +1,84 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+require_once __DIR__ . '/../../../includes/app.php';
+require_once __DIR__ . '/../../../includes/csv.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+exigir_post();
+
+$acao = $_POST['acao'] ?? '';
+$idmodulo = (int) ($_POST['idmodulo'] ?? 0);
+$detalhe = 'visualizar-modulos.php?idmodulo=' . $idmodulo;
+
+if ($acao === 'salvar') {
+    $nome = trim((string) ($_POST['nome_modulo'] ?? ''));
+    $periodo = (int) ($_POST['periodo'] ?? 0);
+    if ($nome === '' || !in_array($periodo, PERIODOS, true)) {
+        redirecionar('editar-modulos.php?idmodulo=' . $idmodulo, 'Informe o nome e um período válido.', 'error');
+    }
+    if (db_um($conn, 'SELECT 1 FROM modulos WHERE nome_modulo = ? AND periodo = ? AND idmodulo <> ?', 'sii', [$nome, $periodo, $idmodulo])) {
+        redirecionar('editar-modulos.php?idmodulo=' . $idmodulo, 'Já existe um módulo com esse nome nesse período.', 'error');
+    }
+    if ($idmodulo) {
+        db_exec($conn, 'UPDATE modulos SET nome_modulo = ?, periodo = ? WHERE idmodulo = ?', 'sii', [$nome, $periodo, $idmodulo]);
+        redirecionar('modulos.php', 'Módulo atualizado.');
+    }
+    db_exec($conn, 'INSERT INTO modulos (nome_modulo, periodo) VALUES (?, ?)', 'si', [$nome, $periodo]);
+    redirecionar('modulos.php', 'Módulo cadastrado.');
 }
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
+
+if ($acao === 'excluir') {
+    try {
+        db_exec($conn, 'DELETE FROM modulos WHERE idmodulo = ?', 'i', [$idmodulo]);
+        redirecionar('modulos.php', 'Módulo excluído.');
+    } catch (mysqli_sql_exception $e) {
+        // Rodízios e horários referenciam o módulo sem CASCADE, de propósito.
+        redirecionar('modulos.php', 'Este módulo está em rodízios ou horários. Exclua o ciclo de rodízio/horários antes.', 'error');
+    }
 }
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
+
+if ($acao === 'matricular' || $acao === 'desmatricular') {
+    $ids = ids_do_post('alunos');
+    $sql = $acao === 'matricular'
+        ? 'INSERT IGNORE INTO modulos_alunos (idmodulo, idusuario) SELECT ?, idusuario FROM usuarios WHERE idusuario = ? AND tipo = 0'
+        : 'DELETE FROM modulos_alunos WHERE idmodulo = ? AND idusuario = ?';
+    $n = 0;
+    foreach ($ids as $id) {
+        $n += db_exec($conn, $sql, 'ii', [$idmodulo, $id]);
+    }
+    redirecionar($detalhe, $acao === 'matricular' ? "{$n} aluno(s) matriculado(s)." : "{$n} aluno(s) removido(s) do módulo.");
 }
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
-?>
-<?php
-switch ($_REQUEST['acao']) {
-    case 'cadastrar':
-        csrf_verify_or_die();
-        if (!empty($_POST['nome_modulo'])) {
-            $nome_modulo = $conn->real_escape_string($_POST['nome_modulo']);
-            $periodo = $conn->real_escape_string($_POST['periodo']);
-            $sql = "INSERT INTO modulos (nome_modulo, periodo) VALUES ('$nome_modulo', '$periodo')";
-            $res = $conn->query($sql);
-            if ($res == true) {
-                echo "<script>alert('Módulo cadastrado com sucesso!');</script>";
-            } else {
-                echo "<script>alert('Não foi possivel cadastrar.');</script>";
-            }
-            echo "<script>location.href='modulos.php';</script>";
-        } else {
-            echo "<script>alert('O campo nome do módulo é obrigatório.');</script>";
+
+if ($acao === 'upload') {
+    // CSV com RA (preferível, é único) ou nome do aluno na primeira coluna.
+    [$linhas, $erro] = ler_csv_upload('file');
+    if ($erro) {
+        redirecionar($detalhe, $erro, 'error');
+    }
+    $novos = $ja = 0;
+    $naoEncontrados = $ambiguos = [];
+    foreach ($linhas as $l) {
+        $chave = $l[0] ?? '';
+        if ($chave === '') {
+            continue;
         }
-        break;
-    case 'editar':
-        csrf_verify_or_die();
-        $idmodulo = intval($_POST['idmodulo']);
-        $nome_modulo = $conn->real_escape_string($_POST['nome_modulo']);
-        $periodo = $conn->real_escape_string($_POST['periodo']);
-
-        $sql = "UPDATE modulos SET nome_modulo = ?, periodo = ? WHERE idmodulo = ?";
-        $stmt = $conn->prepare($sql);
-
-        if ($stmt) {
-            $stmt->bind_param('ssi', $nome_modulo, $periodo, $idmodulo);
-            if ($stmt->execute()) {
-                echo "<script>alert('Módulo alterado com sucesso!');</script>";
-            } else {
-                echo "<script>alert('Não foi possível editar.');</script>";
-            }
-            $stmt->close();
+        $achados = db_todos($conn, 'SELECT idusuario FROM usuarios WHERE tipo = 0 AND (registro = ? OR nome = ?)', 'ss', [$chave, $chave]);
+        if (count($achados) === 0) {
+            $naoEncontrados[] = $chave;
+        } elseif (count($achados) > 1) {
+            $ambiguos[] = $chave;
+        } elseif (db_exec($conn, 'INSERT IGNORE INTO modulos_alunos (idmodulo, idusuario) VALUES (?, ?)', 'ii', [$idmodulo, $achados[0]['idusuario']])) {
+            $novos++;
         } else {
-            echo "<script>alert('Erro na preparação da consulta.');</script>";
+            $ja++;
         }
-
-        echo "<script>location.href='modulos.php';</script>";
-        break;
-
-        case 'excluir':
-            if (isset($_REQUEST['idmodulo'])) {
-                $idmodulo = intval($_REQUEST['idmodulo']);
-    
-                // delete de unidades_modulos
-                $sql = "DELETE FROM unidades_modulos WHERE idmodulo = ?";
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param("i", $idmodulo);
-                $stmt->execute();
-                $stmt->close();
-    
-                // delete de modulo
-                $sql = "DELETE FROM modulos WHERE idmodulo = ?";
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param("i", $idmodulo);
-                if ($stmt->execute()) {
-                    echo "<script>alert('Módulo excluído com sucesso!');</script>";
-                } else {
-                    echo "<script>alert('Não foi possível excluir o módulo.');</script>";
-                }
-                $stmt->close();
-    
-                echo "<script>location.href='modulos.php';</script>";
-            }
-            break;
+    }
+    $msg = "{$novos} matriculado(s), {$ja} já estavam no módulo.";
+    if ($naoEncontrados) {
+        $msg .= ' Não encontrados: ' . implode(', ', array_slice($naoEncontrados, 0, 10)) . (count($naoEncontrados) > 10 ? '…' : '') . '.';
+    }
+    if ($ambiguos) {
+        $msg .= ' Ambíguos (use o RA): ' . implode(', ', array_slice($ambiguos, 0, 10)) . '.';
+    }
+    redirecionar($detalhe, $msg, $naoEncontrados || $ambiguos ? 'warning' : 'success');
 }
+
+redirecionar('modulos.php', 'Ação inválida.', 'error');

@@ -1,132 +1,58 @@
 <?php
-session_start();
-if (empty($_SESSION["login"]) || !in_array($_SESSION['tipo'] ?? null, [1], true)) {
-    echo "<script>location.href='../../index.php';</script>";
-    exit();
-}
-include('../../cfg/config.php');
+require_once __DIR__ . '/../../includes/app.php';
+exigir_acesso(PAPEIS_PRECEPTOR);
+
+$busca = trim((string) ($_GET['q'] ?? ''));
+$like = '%' . $busca . '%';
+$id = usuario_id();
+
+// Só alunos matriculados em módulos deste preceptor.
+$base = "FROM preceptores_modulos pm
+    JOIN modulos_alunos ma ON ma.idmodulo = pm.idmodulo
+    JOIN usuarios u ON u.idusuario = ma.idusuario
+    JOIN modulos m ON m.idmodulo = ma.idmodulo
+    WHERE pm.idusuario = ? AND (u.nome LIKE ? OR u.registro LIKE ?)";
+
+$total = (int) db_um($conn, "SELECT COUNT(DISTINCT u.idusuario) AS n $base", 'iss', [$id, $like, $like])['n'];
+[$pagina, $offset, $totalPaginas] = paginar($total);
+
+$alunos = db_todos($conn, "SELECT u.idusuario, u.nome, u.registro, u.email, u.periodo,
+        GROUP_CONCAT(DISTINCT m.nome_modulo ORDER BY m.nome_modulo SEPARATOR '||') AS modulos,
+        (SELECT AVG(a.nota) FROM avaliacoes a WHERE a.idaluno = u.idusuario AND a.idpreceptor = pm.idusuario) AS media
+    $base
+    GROUP BY u.idusuario, u.nome, u.registro, u.email, u.periodo, pm.idusuario
+    ORDER BY u.nome LIMIT 20 OFFSET ?", 'issi', [$id, $like, $like, $offset]);
+
+layout_inicio('Alunos');
+page_header('Meus alunos', 'Alunos matriculados nos módulos sob sua preceptoria.');
 ?>
-
-<!DOCTYPE html>
-<html lang="pt-br">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de alunos</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
-
-<body>
-    <header>
-        <?php include('../../includes/navbar.php'); ?>
-        <?php include('../../includes/menu-lateral-preceptor.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-3">
-            <div class="card">
-                <div class="card-body">
-                    <h3>Lista de Alunos</h3>
-                    <table class="table table-striped table-secondary table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Nota</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $porPagina = 20;
-                            $pagina = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
-                            $offset = ($pagina - 1) * $porPagina;
-
-                            $sqlCount = "SELECT COUNT(*) AS total FROM usuarios WHERE tipo = 0";
-                            $resCount = $conn->query($sqlCount);
-                            $totalRegistros = $resCount ? (int) $resCount->fetch_assoc()['total'] : 0;
-                            $totalPaginas = max(1, (int) ceil($totalRegistros / $porPagina));
-                            if ($pagina > $totalPaginas) {
-                                $pagina = $totalPaginas;
-                                $offset = ($pagina - 1) * $porPagina;
-                            }
-
-                            $sql = "SELECT u.nome,
-                                           COALESCE((SELECT a.nota
-                                                     FROM avaliacoes a
-                                                     WHERE a.idaluno = u.idusuario
-                                                     ORDER BY a.data_avaliacao DESC
-                                                     LIMIT 1), 'Sem nota') AS nota
-                                    FROM usuarios u
-                                    WHERE u.tipo = 0
-                                    LIMIT ? OFFSET ?";
-
-                            $stmt = $conn->prepare($sql);
-
-                            if (!$stmt) {
-                                error_log("Erro na consulta (listar-aluno.php): " . $conn->error);
-                                die("Erro ao processar a consulta. Tente novamente mais tarde.");
-                            }
-
-                            $stmt->bind_param("ii", $porPagina, $offset);
-                            $stmt->execute();
-                            $res = $stmt->get_result();
-
-                            $qtd = $res->num_rows;
-
-                            if ($qtd > 0) {
-                                while ($row = $res->fetch_object()) {
-                                    echo "<tr>";
-                                    echo "<td>" . htmlspecialchars($row->nome) . "</td>";
-                                    echo "<td>" . htmlspecialchars($row->nota) . "</td>";
-                                    echo "</tr>";
-                                }
-                            } else {
-                                if ($totalRegistros === 0) {
-                                    echo "<tr><td colspan='2'>Nenhum aluno encontrado.</td></tr>";
-                                } else {
-                                    echo "<tr><td colspan='2'>Nenhum aluno encontrado nesta página. <a href='?" . http_build_query(array_merge($_GET, ['pagina' => 1])) . "'>Voltar à primeira página</a>.</td></tr>";
-                                }
-                            }
-                            ?>
-                        </tbody>
-                    </table>
-
-                    <?php if ($totalPaginas > 1): ?>
-                        <nav aria-label="Paginação de alunos">
-                            <ul class="pagination justify-content-center">
-                                <?php
-                                $paramsAnterior = $_GET;
-                                $paramsAnterior['pagina'] = max(1, $pagina - 1);
-                                $paramsProxima = $_GET;
-                                $paramsProxima['pagina'] = min($totalPaginas, $pagina + 1);
-                                ?>
-                                <li class="page-item <?php echo $pagina <= 1 ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="?<?php echo http_build_query($paramsAnterior); ?>">Anterior</a>
-                                </li>
-                                <?php for ($p = 1; $p <= $totalPaginas; $p++): ?>
-                                    <?php $paramsP = $_GET; $paramsP['pagina'] = $p; ?>
-                                    <li class="page-item <?php echo $p === $pagina ? 'active' : ''; ?>">
-                                        <a class="page-link" href="?<?php echo http_build_query($paramsP); ?>"><?php echo $p; ?></a>
-                                    </li>
-                                <?php endfor; ?>
-                                <li class="page-item <?php echo $pagina >= $totalPaginas ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="?<?php echo http_build_query($paramsProxima); ?>">Próxima</a>
-                                </li>
-                            </ul>
-                        </nav>
-                    <?php endif; ?>
-                </div>
-            </div>
+<form method="GET" class="mb-3" role="search">
+    <div class="input-group" style="max-width: 420px">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="search" name="q" class="form-control" placeholder="Buscar por nome ou RA" value="<?= e($busca) ?>">
+    </div>
+</form>
+<div class="card">
+    <?php if (!$alunos): ?>
+        <div class="card-body"><?= empty_state($busca ? 'Nenhum aluno encontrado para essa busca.' : 'Nenhum aluno matriculado nos seus módulos.', 'bi-mortarboard') ?></div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Nome</th><th>RA</th><th>Período</th><th>Módulos</th><th class="text-end">Média (sua)</th></tr></thead>
+                <tbody>
+                    <?php foreach ($alunos as $a): ?>
+                        <tr>
+                            <td class="fw-medium"><?= e($a['nome']) ?><div class="small text-muted"><?= e($a['email']) ?></div></td>
+                            <td><?= e($a['registro']) ?></td>
+                            <td><?= $a['periodo'] ? (int) $a['periodo'] . 'º' : '—' ?></td>
+                            <td><?php foreach (explode('||', (string) $a['modulos']) as $m): ?><span class="chip"><?= e($m) ?></span><?php endforeach; ?></td>
+                            <td class="text-end"><?= $a['media'] !== null ? e(number_format((float) $a['media'], 2, ',', '.')) : '<span class="text-muted">—</span>' ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-</body>
-
-</html>
+    <?php endif; ?>
+</div>
+<?= paginacao($pagina, $totalPaginas) ?>
+<?php layout_fim(); ?>

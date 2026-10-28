@@ -1,66 +1,63 @@
 <?php
-session_start();
-if (empty($_SESSION["login"])) {
-    echo "<script>location.href='../../../index.php';</script>";
-    exit();
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+
+$periodo = in_array((int) ($_GET['periodo'] ?? 0), PERIODOS, true) ? (int) $_GET['periodo'] : 0;
+
+$modulos = db_todos($conn, "SELECT m.idmodulo, m.nome_modulo, m.periodo,
+        (SELECT COUNT(*) FROM modulos_alunos ma WHERE ma.idmodulo = m.idmodulo) AS alunos,
+        (SELECT GROUP_CONCAT(u.nome_unidade ORDER BY u.nome_unidade SEPARATOR '||') FROM unidades_modulos um JOIN unidades u ON u.idunidade = um.idunidade WHERE um.idmodulo = m.idmodulo) AS unidades,
+        (SELECT GROUP_CONCAT(u.nome ORDER BY u.nome SEPARATOR '||') FROM preceptores_modulos pm JOIN usuarios u ON u.idusuario = pm.idusuario WHERE pm.idmodulo = m.idmodulo) AS preceptores
+    FROM modulos m
+    WHERE (? = 0 OR m.periodo = ?)
+    ORDER BY m.periodo, m.nome_modulo", 'ii', [$periodo, $periodo]);
+
+function chips(?string $lista, string $vazio): string
+{
+    if (!$lista) {
+        return '<span class="status status-warning">' . e($vazio) . '</span>';
+    }
+    return implode('', array_map(fn($x) => '<span class="chip">' . e($x) . '</span>', explode('||', $lista)));
 }
-include('../../../cfg/config.php');
+
+layout_inicio('Módulos');
+page_header('Módulos', 'Disciplinas do internato, por período. Unidades e preceptores são definidos nas telas de Unidades e Preceptores.',
+    '<a href="importar-modulos.php" class="btn btn-outline-secondary"><i class="bi bi-upload"></i> Importar CSV</a>'
+    . '<a href="editar-modulos.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Novo módulo</a>');
 ?>
-
-<!DOCTYPE html>
-<html lang="pt-br">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Módulos</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
-
-<body>
-    <header>
-        <?php include('../../../includes/navbar.php'); ?>
-        <?php include('../../../includes/menu-lateral-coordenacao.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-3">
-            <div class="row">
-                <div class="col">
-                    <?php
-                    switch (@$_REQUEST['page']) {
-                        case 'editar-modulos':
-                            include('editar-modulos.php');
-                            break;
-                        case 'registrar-modulos':
-                            include('registrar-modulos.php');
-                            break;
-                        case 'importar-modulos':
-                            include('importar-modulos.php');
-                            break;
-                        case 'visualizar-modulos':
-                            include('visualizar-modulos.php');
-                            break;
-                            case 'upload-alunos':
-                                include('upload-alunos.php');
-                                break;
-                        default:
-                            include('listar-modulos.php');
-                            break;
-                    }
-                    ?>
-                </div>
-            </div>
+<form method="GET" class="d-flex gap-2 align-items-center mb-3">
+    <label for="periodo" class="form-label mb-0 text-muted">Período</label>
+    <select name="periodo" id="periodo" class="form-select w-auto" onchange="this.form.submit()">
+        <option value="0">Todos</option>
+        <?php foreach (PERIODOS as $p): ?><option value="<?= $p ?>" <?= $p === $periodo ? 'selected' : '' ?>><?= $p ?>º período</option><?php endforeach; ?>
+    </select>
+</form>
+<div class="card">
+    <?php if (!$modulos): ?>
+        <div class="card-body"><?= empty_state('Nenhum módulo cadastrado.', 'bi-grid', '<a href="editar-modulos.php" class="btn btn-primary">Cadastrar módulo</a>') ?></div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table class="table align-middle">
+                <thead><tr><th>Módulo</th><th>Período</th><th class="text-end">Alunos</th><th>Unidades</th><th>Preceptores</th><th class="actions">Ações</th></tr></thead>
+                <tbody>
+                    <?php foreach ($modulos as $m): ?>
+                        <tr>
+                            <td class="fw-medium"><a href="visualizar-modulos.php?idmodulo=<?= (int) $m['idmodulo'] ?>"><?= e($m['nome_modulo']) ?></a></td>
+                            <td><?= (int) $m['periodo'] ?>º</td>
+                            <td class="text-end"><?= (int) $m['alunos'] ?></td>
+                            <td><?= chips($m['unidades'], 'sem unidade') ?></td>
+                            <td><?= chips($m['preceptores'], 'sem preceptor') ?></td>
+                            <td class="actions">
+                                <a href="visualizar-modulos.php?idmodulo=<?= (int) $m['idmodulo'] ?>" class="btn btn-sm btn-outline-secondary">Alunos</a>
+                                <a href="editar-modulos.php?idmodulo=<?= (int) $m['idmodulo'] ?>" class="btn btn-sm btn-outline-secondary" aria-label="Editar"><i class="bi bi-pencil"></i></a>
+                                <?= form_acao('acoes-modulos.php', ['acao' => 'excluir', 'idmodulo' => $m['idmodulo']], '<i class="bi bi-trash"></i>', 'btn btn-sm btn-outline-danger',
+                                    'Excluir o módulo "' . $m['nome_modulo'] . '"? Matrículas, associações e avaliações dele serão removidas.') ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-
-</html>
+    <?php endif; ?>
+</div>
+<?php layout_fim(); ?>

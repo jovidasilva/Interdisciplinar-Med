@@ -1,33 +1,19 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+exigir_post();
+
+// Nunca exclui o próprio usuário.
+$ids = array_values(array_diff(ids_do_post('usuarios'), [usuario_id()]));
+if (!$ids) {
+    redirecionar('usuarios.php', 'Selecione ao menos um usuário (você não pode excluir a si mesmo).', 'warning');
 }
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
-?>
-<?php
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['usuarios'])) {
-    csrf_verify_or_die();
 
-    $usuarios = $_POST['usuarios'];
-
-    $placeholders = implode(',', array_fill(0, count($usuarios), '?'));
-    $sql = "DELETE FROM usuarios WHERE idusuario IN ($placeholders)";
-    $stmt = $conn->prepare($sql);
-
-    $stmt->bind_param(str_repeat('i', count($usuarios)), ...$usuarios);
-
-    if ($stmt->execute()) {
-        echo "<script>location.href='usuarios.php?page=listar-usuarios&alert=3';</script>";
-    } else {
-        echo "<script>location.href='usuarios.php?page=listar-usuarios&alert=4';</script>";
-    }
-    $stmt->close();
-    exit();
+try {
+    $marcadores = implode(',', array_fill(0, count($ids), '?'));
+    $n = db_exec($conn, "DELETE FROM usuarios WHERE idusuario IN ($marcadores)", str_repeat('i', count($ids)), $ids);
+    redirecionar('usuarios.php', "{$n} usuário(s) excluído(s).");
+} catch (mysqli_sql_exception $e) {
+    error_log('Erro ao excluir usuários: ' . $e->getMessage());
+    redirecionar('usuarios.php', 'Não foi possível excluir: há registros vinculados. Desative o usuário em vez de excluí-lo.', 'error');
 }

@@ -1,288 +1,150 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
-include('acoes-horario.php');
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
 
-// Verifica se o usuário está logado
-checkLogin();
-
-$horarioData = null;
-// Verifica se o ID do horário foi passado na URL
-if (isset($_GET['id'])) {
-    $idHorario = $_GET['id'];
-    $horarioData = getHorarioData($conn, $idHorario);
-}
-
-if (isset($_GET['action'])) {
-    $action = $_GET['action'];
-
-    switch ($action) {
-        case 'getDepartamentos':
-            $idUnidade = $_GET['idunidade'];
-            echo getDepartamentos($conn, $idUnidade);
-            break;
-
-        case 'getModulos':
-            $idDepartamento = $_GET['iddepartamento'];
-            echo getModulos($conn, $idDepartamento);
-            break;
-
-        case 'getSubgrupos':
-            $idModulo = $_GET['idmodulo'];
-            echo getSubgrupos($conn, $idModulo);
-            break;
-
-        case 'getPreceptores':
-            $idModulo = $_GET['idmodulo'];
-            $idUnidade = $_GET['idunidade'];
-            echo getPreceptores($conn, $idModulo, $idUnidade);
-            break;
+/** Opções de cada campo dependente, a partir do que já foi escolhido. */
+function opcoes_horario(mysqli $conn, int $idunidade, int $iddep, int $idmodulo, int $idsubgrupoAtual = 0): array
+{
+    $op = ['departamentos' => [], 'modulos' => [], 'subgrupos' => [], 'preceptores' => []];
+    if ($idunidade) {
+        $op['departamentos'] = db_todos($conn, 'SELECT iddepartamento AS id, nome_departamento AS nome FROM departamentos WHERE idunidade = ? ORDER BY nome_departamento', 'i', [$idunidade]);
+        // Se o departamento tem módulos definidos, restringe a eles.
+        $op['modulos'] = db_todos($conn, "SELECT m.idmodulo AS id, CONCAT(m.nome_modulo, ' (', m.periodo, 'º)') AS nome
+            FROM unidades_modulos um JOIN modulos m ON m.idmodulo = um.idmodulo
+            WHERE um.idunidade = ?
+              AND (? = 0 OR NOT EXISTS (SELECT 1 FROM modulos_departamentos md WHERE md.iddepartamento = ?)
+                   OR EXISTS (SELECT 1 FROM modulos_departamentos md WHERE md.iddepartamento = ? AND md.idmodulo = m.idmodulo))
+            ORDER BY m.periodo, m.nome_modulo", 'iiii', [$idunidade, $iddep, $iddep, $iddep]);
     }
+    if ($idmodulo) {
+        $op['subgrupos'] = db_todos($conn, "SELECT sg.idsubgrupo AS id,
+                CONCAT(sg.nome_subgrupo, ' — ', DATE_FORMAT(r.inicio, '%d/%m'), ' a ', DATE_FORMAT(r.fim, '%d/%m/%Y')) AS nome
+            FROM rodizios r JOIN rodizios_subgrupos rs ON rs.idrodizio = r.idrodizio JOIN subgrupos sg ON sg.idsubgrupo = rs.idsubgrupo
+            WHERE r.idmodulo = ? AND (r.fim >= CURDATE() - INTERVAL 30 DAY OR sg.idsubgrupo = ?)
+            ORDER BY r.inicio, sg.nome_subgrupo", 'ii', [$idmodulo, $idsubgrupoAtual]);
+        $op['preceptores'] = db_todos($conn, 'SELECT u.idusuario AS id, u.nome FROM preceptores_modulos pm
+            JOIN usuarios u ON u.idusuario = pm.idusuario JOIN preceptores_unidades pu ON pu.idusuario = u.idusuario
+            WHERE pm.idmodulo = ? AND pu.idunidade = ? AND u.ativo = 1 ORDER BY u.nome', 'ii', [$idmodulo, $idunidade]);
+    }
+    return $op;
+}
+
+if (isset($_GET['opcoes'])) {
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode(opcoes_horario($conn, (int) ($_GET['idunidade'] ?? 0), (int) ($_GET['iddepartamento'] ?? 0), (int) ($_GET['idmodulo'] ?? 0)));
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_verify_or_die();
-
-    $result = saveOrUpdateHorario($conn, $_POST);
-    if ($result['success']) {
-        echo "<script>alert('" . $result['message'] . "'); location.href='horarios.php';</script>";
-    } else {
-        echo "<script>alert('" . $result['message'] . "');</script>";
-    }
+$id = (int) ($_GET['id'] ?? 0);
+$h = ['idhorario' => 0, 'idunidade' => 0, 'iddepartamento' => 0, 'idmodulo' => 0, 'idsubgrupo' => 0, 'idpreceptor' => 0,
+    'dia_semana' => 'Segunda', 'hora_inicio' => '07:00', 'hora_fim' => '12:00', 'local' => ''];
+if ($id) {
+    $h = db_um($conn, 'SELECT * FROM horarios WHERE idhorario = ?', 'i', [$id]) ?? redirecionar('horarios.php', 'Horário não encontrado.', 'error');
 }
+$h = array_merge($h, $_SESSION['form_horario'] ?? []);
+unset($_SESSION['form_horario']);
+
+$unidades = db_todos($conn, 'SELECT idunidade AS id, nome_unidade AS nome FROM unidades ORDER BY nome_unidade');
+$op = opcoes_horario($conn, (int) $h['idunidade'], (int) $h['iddepartamento'], (int) $h['idmodulo'], (int) $h['idsubgrupo']);
+
+function options(array $lista, $selecionado, string $vazio): string
+{
+    $html = '<option value="">' . e($vazio) . '</option>';
+    foreach ($lista as $o) {
+        $html .= '<option value="' . (int) $o['id'] . '"' . ((int) $o['id'] === (int) $selecionado ? ' selected' : '') . '>' . e($o['nome']) . '</option>';
+    }
+    return $html;
+}
+
+$titulo = $id ? 'Editar horário' : 'Novo horário';
+layout_inicio($titulo);
+page_header($titulo, 'As opções de cada campo dependem das anteriores: unidade → módulo → subgrupo e preceptor.', botao_voltar('horarios.php'));
 ?>
+<form method="POST" action="acoes-horario.php" class="card" style="max-width: 820px">
+    <div class="card-body">
+        <?= csrf_field() ?>
+        <input type="hidden" name="acao" value="salvar">
+        <input type="hidden" name="idhorario" value="<?= (int) $h['idhorario'] ?>">
 
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Preencher Horário</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
-<body>
-    <header>
-        <?php include('../../../includes/navbar.php'); ?>
-        <?php include('../../../includes/menu-lateral-coordenacao.php'); ?>
-    </header>
-    <main class="container mt-4">
-        <h2><?php echo isset($horarioData['idhorario']) ? 'Editar Horário' : 'Preencher Horário'; ?></h2>
-        <form method="POST" action="">
-            <?php echo csrf_field(); ?>
-            <!-- Campo Oculto para o ID do Horário -->
-            <input type="hidden" name="idHorario" value="<?php echo $horarioData['idhorario'] ?? ''; ?>">
+        <h2 class="section-title">Onde</h2>
+        <div class="form-grid mb-4">
+            <div>
+                <label for="idunidade" class="form-label">Unidade</label>
+                <select name="idunidade" id="idunidade" class="form-select dep" required><?= options($unidades, $h['idunidade'], 'Selecione…') ?></select>
+            </div>
+            <div>
+                <label for="iddepartamento" class="form-label">Departamento <span class="text-muted fw-normal">(opcional)</span></label>
+                <select name="iddepartamento" id="iddepartamento" class="form-select dep"><?= options($op['departamentos'], $h['iddepartamento'], '—') ?></select>
+            </div>
+            <div>
+                <label for="local" class="form-label">Local <span class="text-muted fw-normal">(sala, ala…)</span></label>
+                <input type="text" name="local" id="local" class="form-control" maxlength="90" value="<?= e($h['local']) ?>">
+            </div>
+        </div>
 
-            <div class="mb-3">
-                <label for="idUnidade" class="form-label">Unidade</label>
-                <select name="idUnidade" id="idUnidade" class="form-select" required>
-                    <option value="">Selecione a Unidade</option>
-                    <?php
-                    $unidades = getUnidades($conn);
-                    foreach ($unidades as $unidade) {
-                        $selected = ($horarioData['idunidade'] ?? '') == $unidade['idunidade'] ? 'selected' : '';
-                        echo "<option value='" . $unidade['idunidade'] . "' $selected>" . $unidade['nome_unidade'] . "</option>";
-                    }
-                    ?>
+        <h2 class="section-title">O quê e quem</h2>
+        <div class="form-grid mb-4">
+            <div>
+                <label for="idmodulo" class="form-label">Módulo</label>
+                <select name="idmodulo" id="idmodulo" class="form-select dep" required><?= options($op['modulos'], $h['idmodulo'], 'Selecione a unidade…') ?></select>
+            </div>
+            <div>
+                <label for="idsubgrupo" class="form-label">Subgrupo</label>
+                <select name="idsubgrupo" id="idsubgrupo" class="form-select" required><?= options($op['subgrupos'], $h['idsubgrupo'], 'Selecione o módulo…') ?></select>
+            </div>
+            <div>
+                <label for="idpreceptor" class="form-label">Preceptor</label>
+                <select name="idpreceptor" id="idpreceptor" class="form-select" required><?= options($op['preceptores'], $h['idpreceptor'], 'Selecione o módulo…') ?></select>
+            </div>
+        </div>
+
+        <h2 class="section-title">Quando</h2>
+        <div class="form-grid">
+            <div>
+                <label for="dia_semana" class="form-label">Dia da semana</label>
+                <select name="dia_semana" id="dia_semana" class="form-select" required>
+                    <?php foreach (DIAS_SEMANA as $d): ?><option <?= $h['dia_semana'] === $d ? 'selected' : '' ?>><?= e($d) ?></option><?php endforeach; ?>
                 </select>
             </div>
-
-            <div class="mb-3">
-                <label for="idDepartamento" class="form-label">Departamento</label>
-                <select name="idDepartamento" id="idDepartamento" class="form-select" required>
-                    <option value="">Selecione o Departamento</option>
-                    <?php
-                    if (isset($horarioData['idunidade'])) {
-                        $departamentos = getDepartamentosByUnidade($conn, $horarioData['idunidade']);
-                        foreach ($departamentos as $departamento) {
-                            $selected = ($horarioData['iddepartamento'] ?? '') == $departamento['iddepartamento'] ? 'selected' : '';
-                            echo "<option value='" . $departamento['iddepartamento'] . "' $selected>" . $departamento['nome_departamento'] . "</option>";
-                        }
-                    }
-                    ?>
-                </select>
+            <div>
+                <label for="hora_inicio" class="form-label">Início</label>
+                <input type="time" name="hora_inicio" id="hora_inicio" class="form-control" value="<?= e(hora_curta($h['hora_inicio'])) ?>" required>
             </div>
-
-            <div class="mb-3">
-                <label for="idModulo" class="form-label">Módulo</label>
-                <select name="idModulo" id="idModulo" class="form-select" required>
-                    <option value="">Selecione o Módulo</option>
-                    <?php
-                    if (isset($horarioData['iddepartamento'])) {
-                        $modulos = getModulosByDepartamento($conn, $horarioData['iddepartamento']);
-                        foreach ($modulos as $modulo) {
-                            $selected = ($horarioData['idmodulo'] ?? '') == $modulo['idmodulo'] ? 'selected' : '';
-                            echo "<option value='" . $modulo['idmodulo'] . "' $selected>" . $modulo['nome_modulo'] . "</option>";
-                        }
-                    }
-                    ?>
-                </select>
+            <div>
+                <label for="hora_fim" class="form-label">Fim</label>
+                <input type="time" name="hora_fim" id="hora_fim" class="form-control" value="<?= e(hora_curta($h['hora_fim'])) ?>" required>
             </div>
+        </div>
 
-            <div class="mb-3">
-                <label for="subgrupo" class="form-label">Subgrupo</label>
-                <select name="subgrupo" id="subgrupo" class="form-select" required>
-                    <option value="">Selecione o Subgrupo</option>
-                    <?php
-                    if (isset($horarioData['idmodulo'])) {
-                        $subgrupos = getSubgruposByModulo($conn, $horarioData['idmodulo']);
-                        foreach ($subgrupos as $subgrupo) {
-                            $selected = ($horarioData['idsubgrupo'] ?? '') == $subgrupo['idsubgrupo'] ? 'selected' : '';
-                            echo "<option value='" . $subgrupo['idsubgrupo'] . "' $selected>" . $subgrupo['nome_subgrupo'] . "</option>";
-                        }
-                    }
-                    ?>
-                </select>
-            </div>
-
-            <div class="mb-3">
-                <label for="idPreceptor" class="form-label">Preceptor</label>
-                <select name="idPreceptor" id="idPreceptor" class="form-select" required>
-                    <option value="">Selecione o Preceptor</option>
-                    <?php
-                    if (isset($horarioData['idmodulo']) && isset($horarioData['idunidade'])) {
-                        $preceptores = getPreceptoresByModuloUnidade($conn, $horarioData['idmodulo'], $horarioData['idunidade']);
-                        foreach ($preceptores as $preceptor) {
-                            $selected = ($horarioData['idpreceptor'] ?? '') == $preceptor['idusuario'] ? 'selected' : '';
-                            echo "<option value='" . $preceptor['idusuario'] . "' $selected>" . $preceptor['nome'] . "</option>";
-                        }
-                    }
-                    ?>
-                </select>
-            </div>
-
-            <div class="mb-3">
-                <label for="horaInicio" class="form-label">Hora de Início</label>
-                <input type="time" name="horaInicio" id="horaInicio" class="form-control" required value="<?php echo htmlspecialchars($horarioData['hora_inicio'] ?? ''); ?>">
-            </div>
-
-            <div class="mb-3">
-                <label for="horaFim" class="form-label">Hora de Fim</label>
-                <input type="time" name="horaFim" id="horaFim" class="form-control" required value="<?php echo htmlspecialchars($horarioData['hora_fim'] ?? ''); ?>">
-            </div>
-
-            <div class="mb-3">
-                <label for="diaSemana" class="form-label">Dia da Semana</label>
-                <select name="diaSemana" id="diaSemana" class="form-select" required>
-                <option value="Segunda" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Segunda') ? 'selected' : ''; ?>>Segunda-feira</option>
-                    <option value="Terça" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Terça') ? 'selected' : ''; ?>>Terça-feira</option>
-                    <option value="Quarta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Quarta') ? 'selected' : ''; ?>>Quarta-feira</option>
-                    <option value="Quinta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Quinta') ? 'selected' : ''; ?>>Quinta-feira</option>
-                    <option value="Sexta" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Sexta') ? 'selected' : ''; ?>>Sexta-feira</option>
-                    <option value="Sábado" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Sábado') ? 'selected' : ''; ?>>Sábado</option>
-                    <option value="Domingo" <?php echo (isset($horarioData['dia_semana']) && $horarioData['dia_semana'] == 'Domingo') ? 'selected' : ''; ?>>Domingo</option>
-                </select>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Salvar Horário</button>
-            <a href="horarios.php" class="btn btn-secondary">Voltar</a>
-        </form>
-    </main>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#idUnidade').change(function() {
-                var idUnidade = $(this).val();
-                if (idUnidade) {
-                    $.ajax({
-                        url: 'preencher-horario.php',
-                        type: 'GET',
-                        data: { action: 'getDepartamentos', idunidade: idUnidade },
-                        success: function(data) {
-                            var departamentos = JSON.parse(data);
-                            // Limpar o campo de seleção de departamentos antes de adicionar novos
-                            $('#idDepartamento').html('<option value="">Selecione o Departamento</option>')
-                            $.each(departamentos, function(index, departamento) {
-                                $('#idDepartamento').append('<option value="'+departamento.iddepartamento+'">'+departamento.nome_departamento+'</option>');
-                            });
-                        }
-                    });
-                }
+        <div class="form-actions">
+            <a href="horarios.php" class="btn btn-outline-secondary">Cancelar</a>
+            <button class="btn btn-primary"><i class="bi bi-check2"></i> Salvar horário</button>
+        </div>
+    </div>
+</form>
+<script>
+(function () {
+    var campos = { departamentos: 'iddepartamento', modulos: 'idmodulo', subgrupos: 'idsubgrupo', preceptores: 'idpreceptor' };
+    var vazios = { departamentos: '—', modulos: 'Selecione…', subgrupos: 'Selecione…', preceptores: 'Selecione…' };
+    function val(id) { return document.getElementById(id).value || 0; }
+    function preencher(sel, lista, vazio) {
+        var atual = sel.value;
+        sel.innerHTML = '';
+        sel.add(new Option(lista.length || vazio === '—' ? vazio : 'Nenhuma opção disponível', ''));
+        lista.forEach(function (o) { sel.add(new Option(o.nome, o.id, false, String(o.id) === atual)); });
+    }
+    function atualizar(ev) {
+        var p = new URLSearchParams({ opcoes: 1, idunidade: val('idunidade'), iddepartamento: val('iddepartamento'), idmodulo: val('idmodulo') });
+        fetch('preencher-horario.php?' + p, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (op) {
+                Object.keys(campos).forEach(function (k) {
+                    if (ev && ev.target.id === campos[k]) return; // não reescreve o próprio campo alterado
+                    preencher(document.getElementById(campos[k]), op[k], vazios[k]);
+                });
             });
-
-            $('#idDepartamento').change(function() {
-                var idDepartamento = $(this).val();
-                if (idDepartamento) {
-                    $.ajax({
-                        url: 'preencher-horario.php',
-                        type: 'GET',
-                        data: { action: 'getModulos', iddepartamento: idDepartamento },
-                        success: function(data) {
-                            var modulos = JSON.parse(data);
-                            // Limpar o campo de seleção de módulos antes de adicionar novos
-                            $('#idModulo').html('<option value="">Selecione o Módulo</option>');
-
-                            $.each(modulos, function(index, modulo) {
-                                $('#idModulo').append('<option value="'+modulo.idmodulo+'">'+modulo.nome_modulo+'</option>');
-                            });
-                        }
-                    });
-                }
-            });
-
-            $('#idModulo').change(function() {
-                var idModulo = $(this).val();
-                if (idModulo) {
-                    $.ajax({
-                        url: 'preencher-horario.php',
-                        type: 'GET',
-                        data: { action: 'getSubgrupos', idmodulo: idModulo },
-                        success: function(data) {
-                            var subgrupos = JSON.parse(data);
-                            // Limpar o campo de seleção de subgrupos antes de adicionar novos
-                            $('#subgrupo').html('<option value="">Selecione o Subgrupo</option>');
-
-                            $.each(subgrupos, function(index, subgrupo) {
-                                $('#subgrupo').append('<option value="'+subgrupo.idsubgrupo+'">'+subgrupo.nome_subgrupo+'</option>');
-                            });
-                        }
-                    });
-
-                    var idUnidade = $('#idUnidade').val();
-                    $.ajax({
-                        url: 'preencher-horario.php',
-                        type: 'GET',
-                        data: { action: 'getPreceptores', idunidade: idUnidade, idmodulo: idModulo },
-                        success: function(data) {
-                            var preceptores = JSON.parse(data);
-                            // Limpar o campo de seleção de preceptores antes de adicionar novos
-                            $('#idPreceptor').html('<option value="">Selecione o Preceptor</option>');
-
-                            $.each(preceptores, function(index, preceptor) {
-                                $('#idPreceptor').append('<option value="'+preceptor.idusuario+'">'+preceptor.nome+'</option>');
-                            });
-                        }
-                    });
-                }
-            });
-
-            // Preencher os campos no carregamento da página se estivermos editando um horário
-            <?php if (isset($horarioData)) { ?>
-                // Disparar os eventos 'change' para preencher os campos relacionados
-                $('#idUnidade').trigger('change');
-                setTimeout(function() {
-                    $('#idDepartamento').val('<?php echo $horarioData['iddepartamento']; ?>').trigger('change');
-                    setTimeout(function() {
-                        $('#idModulo').val('<?php echo $horarioData['idmodulo']; ?>').trigger('change');
-                        setTimeout(function() {
-                            $('#subgrupo').val('<?php echo $horarioData['idsubgrupo']; ?>');
-                            $('#idPreceptor').val('<?php echo $horarioData['idpreceptor']; ?>');
-                        }, 500);
-                    }, 500);
-                }, 500);
-            <?php } ?>
-        });
-    </script>
-</body>
-</html>
+    }
+    document.querySelectorAll('select.dep').forEach(function (s) { s.addEventListener('change', atualizar); });
+})();
+</script>
+<?php layout_fim(); ?>

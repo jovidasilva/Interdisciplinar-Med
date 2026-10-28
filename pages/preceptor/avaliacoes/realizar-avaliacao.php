@@ -1,135 +1,60 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+require_once __DIR__ . '/../../../includes/app.php';
+require_once __DIR__ . '/avaliacao-comum.php';
+exigir_acesso(PAPEIS_PRECEPTOR);
+
+$idaluno = (int) ($_GET['idaluno'] ?? 0);
+$idmodulo = (int) ($_GET['idmodulo'] ?? 0);
+
+$contexto = contexto_avaliacao($conn, usuario_id(), $idaluno, $idmodulo);
+if (!$contexto) {
+    redirecionar('avaliacoes.php', 'Este aluno não está matriculado em um módulo seu.', 'error');
 }
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [1], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
+if ($contexto['idavaliacao']) {
+    redirecionar('consultar-avaliacao.php?id=' . (int) $contexto['idavaliacao'], 'Este aluno já foi avaliado neste módulo.', 'info');
 }
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
+
+$perguntas = db_todos($conn, 'SELECT idpergunta, titulo, descricao FROM perguntas_avaliacoes WHERE ativo = 1 ORDER BY idpergunta');
+
+layout_inicio('Realizar avaliação');
+page_header('Avaliar ' . $contexto['aluno'], $contexto['nome_modulo'] . ' · RA ' . $contexto['registro'], botao_voltar('avaliacoes.php'));
 ?>
-<?php
-$idaluno = isset($_GET['idaluno']) ? intval($_GET['idaluno']) : null;
-$idpreceptor = isset($_SESSION['idusuario']) ? $_SESSION['idusuario'] : null;
+<?php if (!$perguntas): ?>
+    <div class="card"><div class="card-body"><?= empty_state('Nenhuma pergunta de avaliação ativa. A coordenação precisa cadastrá-las.', 'bi-question-circle') ?></div></div>
+<?php else: ?>
+<form method="POST" action="processar-avaliacao.php" class="form-narrow" style="max-width: 820px">
+    <?= csrf_field() ?>
+    <input type="hidden" name="idaluno" value="<?= $idaluno ?>">
+    <input type="hidden" name="idmodulo" value="<?= $idmodulo ?>">
 
-if (!$idaluno) {
-    echo "<script>alert('ID do aluno não informado ou inválido.'); location.href='avaliacoes.php';</script>";
-    exit();
-}
+    <?php foreach ($perguntas as $i => $p): $pid = (int) $p['idpergunta']; ?>
+        <fieldset class="question">
+            <legend><?= $i + 1 ?>. <?= e($p['titulo']) ?></legend>
+            <p><?= e($p['descricao']) ?></p>
+            <div class="scale">
+                <?php foreach (OPCOES_RESPOSTA as $valor => $rotulo): ?>
+                    <input type="radio" id="p<?= $pid ?>_<?= $valor ?>" name="respostas[<?= $pid ?>]" value="<?= $valor ?>" required>
+                    <label for="p<?= $pid ?>_<?= $valor ?>"><?= e($rotulo) ?> <span class="opacity-75">(<?= $valor ?>)</span></label>
+                <?php endforeach; ?>
+            </div>
+        </fieldset>
+    <?php endforeach; ?>
 
-$queryModulos = "
-    SELECT m.idmodulo, m.nome_modulo 
-    FROM modulos m
-    JOIN modulos_alunos ma ON m.idmodulo = ma.idmodulo
-    WHERE ma.idusuario = ?";
-$stmtModulos = $conn->prepare($queryModulos);
-$stmtModulos->bind_param("i", $idaluno);
-$stmtModulos->execute();
-$resultModulos = $stmtModulos->get_result();
-
-$queryPerguntas = "SELECT idpergunta, titulo, descricao FROM perguntas_avaliacoes WHERE ativo = 1";
-$resultPerguntas = $conn->query($queryPerguntas);
-?>
-
-
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f7f9fc;
-    }
-
-    h3 {
-        color: #0d4f9b;
-        font-weight: bold;
-        margin-bottom: 1.5rem;
-    }
-
-    .form-container {
-        background: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        padding: 2rem;
-        max-width: 700px;
-        margin: auto;
-    }
-
-    .form-select,
-    .form-label,
-    .btn {
-        font-size: 1rem;
-    }
-
-    .fieldset-container {
-        background: #f1f4f9;
-        border-radius: 5px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .legend {
-        font-weight: bold;
-        font-size: 1.2rem;
-        color: #333;
-    }
-
-    .btn-primary {
-        background-color: #007bff;
-        border: none;
-        padding: 0.6rem 1.2rem;
-    }
-</style>
-
-
-<h3>Realizar Avaliação</h3>
-<form method="post" action="processar-avaliacao.php?<?php echo 'idaluno=' . $idaluno . '&idpreceptor=' . $idpreceptor; ?>">
-    <?php echo csrf_field(); ?>
-    <div class="mb-3">
-        <label for="modulo" class="form-label">Módulo</label>
-        <select name="modulo" id="modulo" class="form-select" required>
-            <?php if ($resultModulos->num_rows > 0): ?>
-                <?php while ($rowModulo = $resultModulos->fetch_assoc()): ?>
-                    <option value="<?php echo $rowModulo['idmodulo']; ?>">
-                        <?php echo htmlspecialchars($rowModulo['nome_modulo']); ?>
-                    </option>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <option value="">Aluno não está cadastrado em nenhum módulo</option>
-            <?php endif; ?>
-        </select>
-    </div>
-
-    <?php if ($resultPerguntas->num_rows > 0): ?>
-        <?php foreach ($resultPerguntas as $pergunta): ?>
-            <fieldset class="mb-4">
-                <legend><?php echo htmlspecialchars($pergunta['titulo']); ?></legend>
-                <p><?php echo htmlspecialchars($pergunta['descricao']); ?></p>
-
-                <div>
-                    <input type="radio" id="insuficiente_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="4" required>
-                    <label for="insuficiente_<?php echo $pergunta['idpergunta']; ?>">Insuficiente</label>
-                </div>
-                <div>
-                    <input type="radio" id="regular_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="6" required>
-                    <label for="regular_<?php echo $pergunta['idpergunta']; ?>">Regular</label>
-                </div>
-                <div>
-                    <input type="radio" id="bom_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="8" required>
-                    <label for="bom_<?php echo $pergunta['idpergunta']; ?>">Bom</label>
-                </div>
-                <div>
-                    <input type="radio" id="excelente_<?php echo $pergunta['idpergunta']; ?>" name="pergunta_<?php echo $pergunta['idpergunta']; ?>" value="10" required>
-                    <label for="excelente_<?php echo $pergunta['idpergunta']; ?>">Excelente</label>
-                </div>
-            </fieldset>
-        <?php endforeach; ?>
-    <?php else: ?>
-        <p>Nenhuma pergunta disponível.</p>
-    <?php endif; ?>
-    <div class="d-flex justify-content-end">
-        <a href="avaliacoes.php" class="btn btn-secondary me-2">Voltar</a>
-        <button type="submit" class="btn btn-primary">Enviar Avaliação</button>
+    <div class="form-actions">
+        <span class="me-auto text-muted align-self-center" id="previaNota">Nota: —</span>
+        <a href="avaliacoes.php" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Registrar avaliação</button>
     </div>
 </form>
+<script>
+    // Prévia da nota final (média das respostas) enquanto preenche.
+    document.addEventListener('change', function () {
+        var marcadas = Array.from(document.querySelectorAll('.scale input:checked')).map(function (i) { return +i.value; });
+        var total = <?= count($perguntas) ?>;
+        document.getElementById('previaNota').textContent = marcadas.length
+            ? 'Nota parcial: ' + (marcadas.reduce(function (a, b) { return a + b; }, 0) / marcadas.length).toFixed(2).replace('.', ',') + ' · ' + marcadas.length + '/' + total + ' respondidas'
+            : 'Nota: —';
+    });
+</script>
+<?php endif; ?>
+<?php layout_fim(); ?>

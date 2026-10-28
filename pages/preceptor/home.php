@@ -1,91 +1,59 @@
 <?php
-session_start();
-if (empty($_SESSION["login"])) {
-    echo "<script>location.href='../../index.php';</script>";
-    exit();
-}
-include('../../cfg/config.php');
+require_once __DIR__ . '/../../includes/app.php';
+exigir_acesso(PAPEIS_PRECEPTOR);
+
+$id = usuario_id();
+$diaHoje = DIAS_SEMANA[(int) date('N') - 1];
+
+$resumo = db_um($conn, "SELECT
+        (SELECT COUNT(*) FROM preceptores_modulos WHERE idusuario = ?) AS modulos,
+        (SELECT COUNT(DISTINCT ma.idusuario) FROM preceptores_modulos pm JOIN modulos_alunos ma ON ma.idmodulo = pm.idmodulo WHERE pm.idusuario = ?) AS alunos,
+        (SELECT COUNT(*) FROM preceptores_modulos pm JOIN modulos_alunos ma ON ma.idmodulo = pm.idmodulo
+            WHERE pm.idusuario = ? AND NOT EXISTS (SELECT 1 FROM avaliacoes a WHERE a.idaluno = ma.idusuario AND a.idmodulo = ma.idmodulo AND a.idpreceptor = pm.idusuario)) AS pendentes",
+    'iii', [$id, $id, $id]);
+
+$horariosHoje = db_todos($conn, "SELECT h.hora_inicio, h.hora_fim, h.local, m.nome_modulo, u.nome_unidade, sg.nome_subgrupo
+    FROM horarios h
+    JOIN modulos m ON m.idmodulo = h.idmodulo
+    JOIN unidades u ON u.idunidade = h.idunidade
+    JOIN subgrupos sg ON sg.idsubgrupo = h.idsubgrupo
+    WHERE h.idpreceptor = ? AND h.dia_semana = ?
+    ORDER BY h.hora_inicio", 'is', [$id, $diaHoje]);
+
+layout_inicio('Início');
+page_header('Olá, ' . explode(' ', (string) $_SESSION['nome'])[0], 'Resumo dos seus módulos e atividades.');
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
+<div class="stats">
+    <?= stat_tile('Módulos sob sua preceptoria', (string) (int) $resumo['modulos'], 'bi-grid', url('pages/preceptor/rodizios.php')) ?>
+    <?= stat_tile('Alunos nos seus módulos', (string) (int) $resumo['alunos'], 'bi-mortarboard', url('pages/preceptor/listar-aluno.php')) ?>
+    <?= stat_tile('Avaliações pendentes', (string) (int) $resumo['pendentes'], 'bi-clipboard-check', url('pages/preceptor/avaliacoes/avaliacoes.php')) ?>
+    <?= stat_tile('Atividades hoje', (string) count($horariosHoje), 'bi-clock', url('pages/preceptor/horarios.php')) ?>
+</div>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Início - Preceptor</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
-
-<body>
-    <header>
-        <?php include('../../includes/navbar.php'); ?>
-        <?php include('../../includes/menu-lateral-preceptor.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-4">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h2>Bem-vindo(a), <?php echo htmlspecialchars($_SESSION['nome']); ?>!</h2>
-                    <p class="text-muted mb-0">Acesse rapidamente as principais áreas do internato.</p>
-                </div>
-            </div>
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <a href="horarios.php" class="text-decoration-none">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-alarm" style="font-size: 2rem;"></i>
-                                <h5 class="mt-2">Horários</h5>
-                                <p class="text-muted mb-0">Consulte seus horários.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col-md-3">
-                    <a href="grupos.php" class="text-decoration-none">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
-                                <h5 class="mt-2">Grupos</h5>
-                                <p class="text-muted mb-0">Veja os grupos de alunos.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col-md-3">
-                    <a href="rodizios.php" class="text-decoration-none">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-calendar" style="font-size: 2rem;"></i>
-                                <h5 class="mt-2">Rodízios</h5>
-                                <p class="text-muted mb-0">Acompanhe os rodízios.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col-md-3">
-                    <a href="avaliacoes/avaliacoes.php" class="text-decoration-none">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-journal-text" style="font-size: 2rem;"></i>
-                                <h5 class="mt-2">Avaliações</h5>
-                                <p class="text-muted mb-0">Realize e consulte avaliações.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            </div>
+<div class="card">
+    <div class="card-header">
+        <h2>Hoje, <?= e($diaHoje) ?></h2>
+        <a href="<?= e(url('pages/preceptor/horarios.php')) ?>" class="btn btn-sm btn-outline-secondary">Semana completa</a>
+    </div>
+    <?php if (!$horariosHoje): ?>
+        <div class="card-body"><?= empty_state('Nenhuma atividade programada para hoje.', 'bi-calendar-check') ?></div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Horário</th><th>Módulo</th><th>Subgrupo</th><th>Unidade</th><th>Local</th></tr></thead>
+                <tbody>
+                    <?php foreach ($horariosHoje as $h): ?>
+                        <tr>
+                            <td class="time"><?= e(hora_curta($h['hora_inicio'])) ?>–<?= e(hora_curta($h['hora_fim'])) ?></td>
+                            <td><?= e($h['nome_modulo']) ?></td>
+                            <td><?= e($h['nome_subgrupo']) ?></td>
+                            <td><?= e($h['nome_unidade']) ?></td>
+                            <td><?= e($h['local'] ?: '—') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-</body>
-
-</html>
+    <?php endif; ?>
+</div>
+<?php layout_fim(); ?>
