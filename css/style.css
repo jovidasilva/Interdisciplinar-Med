@@ -131,7 +131,7 @@ h1, h2, h3, h4, h5, h6 { color: var(--ink); font-weight: 600; letter-spacing: -.
   display: inline-grid; place-items: center; width: 34px; height: 34px;
   border-radius: var(--radius-sm); background: #1a63b8; color: #fff; font-size: 1.05rem; flex: none;
 }
-.app-nav { padding: 12px 10px; overflow-y: auto; flex: 1; }
+.app-nav { padding: 12px 10px; overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .18) transparent; }
 .app-nav-section {
   margin: 18px 12px 6px; font-size: .7rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: .08em; color: rgba(200, 214, 234, .6);

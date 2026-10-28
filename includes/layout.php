@@ -2,6 +2,8 @@
 // Layout compartilhado (shell com sidebar + topbar, telas de autenticação)
 // e pequenos componentes de interface. Carregado por includes/app.php.
 
+// Cada item: [rótulo, ícone, página do link, ...caminhos que marcam o item ativo].
+// O link sempre aponta para um arquivo: as pastas não têm index.php (403).
 function menu_do_usuario(): array
 {
     $aluno = [
@@ -16,19 +18,19 @@ function menu_do_usuario(): array
         ['Rodízios', 'bi-arrow-repeat', 'pages/preceptor/rodizios.php'],
         ['Grupos', 'bi-people', 'pages/preceptor/grupos.php'],
         ['Alunos', 'bi-mortarboard', 'pages/preceptor/listar-aluno.php'],
-        ['Avaliações', 'bi-clipboard-check', 'pages/preceptor/avaliacoes/'],
+        ['Avaliações', 'bi-clipboard-check', 'pages/preceptor/avaliacoes/avaliacoes.php', 'pages/preceptor/avaliacoes/'],
     ];
     $coordenacao = [
         ['Início', 'bi-house', 'pages/coordenacao/home.php'],
-        ['Usuários', 'bi-person-gear', 'pages/coordenacao/usuarios/'],
+        ['Usuários', 'bi-person-gear', 'pages/coordenacao/usuarios/usuarios.php', 'pages/coordenacao/usuarios/'],
         ['Alunos', 'bi-mortarboard', 'pages/coordenacao/listar-aluno.php'],
         ['Preceptores', 'bi-person-badge', 'pages/coordenacao/listar-preceptor.php', 'pages/coordenacao/associar-preceptor.php'],
-        ['Unidades', 'bi-hospital', 'pages/coordenacao/unidades/'],
-        ['Módulos', 'bi-grid', 'pages/coordenacao/modulos/'],
-        ['Rodízios', 'bi-arrow-repeat', 'pages/coordenacao/rodizios/'],
-        ['Grupos', 'bi-people', 'pages/coordenacao/grupos/'],
-        ['Horários', 'bi-clock', 'pages/coordenacao/horarios/'],
-        ['Avaliações', 'bi-clipboard-check', 'pages/coordenacao/avaliacoes/'],
+        ['Unidades', 'bi-hospital', 'pages/coordenacao/unidades/unidades.php', 'pages/coordenacao/unidades/'],
+        ['Módulos', 'bi-grid', 'pages/coordenacao/modulos/modulos.php', 'pages/coordenacao/modulos/'],
+        ['Rodízios', 'bi-arrow-repeat', 'pages/coordenacao/rodizios/rodizios.php', 'pages/coordenacao/rodizios/'],
+        ['Grupos', 'bi-people', 'pages/coordenacao/grupos/grupos.php', 'pages/coordenacao/grupos/'],
+        ['Horários', 'bi-clock', 'pages/coordenacao/horarios/horarios.php', 'pages/coordenacao/horarios/'],
+        ['Avaliações', 'bi-clipboard-check', 'pages/coordenacao/avaliacoes/avaliacoes.php', 'pages/coordenacao/avaliacoes/'],
         ['Relatórios', 'bi-bar-chart', 'pages/coordenacao/relatorios.php'],
     ];
 
