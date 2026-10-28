@@ -1,208 +1,99 @@
 <?php
-session_start();
-include('../../../cfg/config.php');
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
 
-if (empty($_SESSION["login"])) {
-    echo "<script>location.href='../../index.php';</script>";
-    exit();
+$f = [
+    'dia' => in_array($_GET['dia'] ?? '', DIAS_SEMANA, true) ? $_GET['dia'] : '',
+    'unidade' => (int) ($_GET['unidade'] ?? 0),
+    'modulo' => (int) ($_GET['modulo'] ?? 0),
+    'preceptor' => (int) ($_GET['preceptor'] ?? 0),
+    'subgrupo' => (int) ($_GET['subgrupo'] ?? 0),
+];
+
+$horarios = db_todos($conn, "SELECT h.idhorario, h.dia_semana, h.hora_inicio, h.hora_fim, h.local,
+        u.nome_unidade, d.nome_departamento, m.nome_modulo, p.nome AS preceptor, sg.nome_subgrupo, c.descricao AS ciclo
+    FROM horarios h
+    JOIN unidades u ON u.idunidade = h.idunidade
+    LEFT JOIN departamentos d ON d.iddepartamento = h.iddepartamento
+    JOIN modulos m ON m.idmodulo = h.idmodulo
+    JOIN usuarios p ON p.idusuario = h.idpreceptor
+    JOIN subgrupos sg ON sg.idsubgrupo = h.idsubgrupo
+    JOIN grupos g ON g.idgrupo = sg.idgrupo
+    LEFT JOIN rodizio_ciclos c ON c.idciclo = g.idciclo
+    WHERE (? = '' OR h.dia_semana = ?) AND (? = 0 OR h.idunidade = ?) AND (? = 0 OR h.idmodulo = ?)
+      AND (? = 0 OR h.idpreceptor = ?) AND (? = 0 OR h.idsubgrupo = ?)
+    ORDER BY FIELD(h.dia_semana, 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'), h.hora_inicio, sg.nome_subgrupo",
+    'ssiiiiiiii', [$f['dia'], $f['dia'], $f['unidade'], $f['unidade'], $f['modulo'], $f['modulo'], $f['preceptor'], $f['preceptor'], $f['subgrupo'], $f['subgrupo']]);
+
+$porDia = [];
+foreach ($horarios as $h) {
+    $porDia[$h['dia_semana']][] = $h;
 }
 
-// Capturando os filtros do formulário
-$filterDia = $_GET['dia'] ?? '';
-$filterUnidade = $_GET['unidade'] ?? '';
-$filterSubgrupo = $_GET['subgrupo'] ?? '';
-$filterModulo = $_GET['modulo'] ?? '';
-$filterPreceptor = $_GET['preceptor'] ?? '';
+$opcoes = [
+    'unidade' => db_todos($conn, 'SELECT idunidade AS id, nome_unidade AS nome FROM unidades ORDER BY nome_unidade'),
+    'modulo' => db_todos($conn, "SELECT idmodulo AS id, CONCAT(nome_modulo, ' (', periodo, 'º)') AS nome FROM modulos ORDER BY periodo, nome_modulo"),
+    'preceptor' => db_todos($conn, 'SELECT idusuario AS id, nome FROM usuarios WHERE tipo IN (1, 3) ORDER BY nome'),
+    'subgrupo' => db_todos($conn, "SELECT sg.idsubgrupo AS id, CONCAT(sg.nome_subgrupo, ' — ', COALESCE(c.descricao, 'sem ciclo')) AS nome
+        FROM subgrupos sg JOIN grupos g ON g.idgrupo = sg.idgrupo LEFT JOIN rodizio_ciclos c ON c.idciclo = g.idciclo ORDER BY g.idciclo DESC, sg.nome_subgrupo"),
+];
+$filtrando = array_filter($f) !== [];
 
-// Carregar opções para os selects do banco de dados
-$unidades = $conn->query("SELECT DISTINCT idunidade, nome_unidade FROM unidades");
-$subgrupos = $conn->query("SELECT DISTINCT idsubgrupo, nome_subgrupo FROM subgrupos");
-$modulos = $conn->query("SELECT DISTINCT idmodulo, nome_modulo FROM modulos");
-$preceptores = $conn->query("SELECT DISTINCT idusuario, nome FROM usuarios WHERE tipo = 1");
-
+layout_inicio('Horários');
+page_header('Horários', 'Grade semanal de atividades: quem, onde e quando cada subgrupo atua.',
+    '<a href="preencher-horario.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Novo horário</a>');
 ?>
-
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Horários</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-    <style>
-        /* Adiciona uma margem superior ao formulário de filtros */
-        form.row.mb-4 {
-            margin-top: 30px; /* Ajuste o valor conforme necessário */
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <?php include('../../../includes/navbar.php'); ?>
-        <?php include('../../../includes/menu-lateral-coordenacao.php'); ?>
-    </header>
-    <main class="container mt-4">
-        <h2>Horários</h2>
-        
-        <!-- Formulário de Filtro -->
-        <form method="GET" class="row mb-4">
-            <div class="col-md-2">
-                <label for="dia" class="form-label">Dia da Semana</label>
-                <select name="dia" id="dia" class="form-select">
-                    <option value="">Todos</option>
-                    <option value="Segunda" <?php if ($filterDia == 'Segunda') echo 'selected'; ?>>Segunda</option>
-                    <option value="Terça" <?php if ($filterDia == 'Terça') echo 'selected'; ?>>Terça</option>
-                    <option value="Quarta" <?php if ($filterDia == 'Quarta') echo 'selected'; ?>>Quarta</option>
-                    <option value="Quinta" <?php if ($filterDia == 'Quinta') echo 'selected'; ?>>Quinta</option>
-                    <option value="Sexta" <?php if ($filterDia == 'Sexta') echo 'selected'; ?>>Sexta</option>
-                    <option value="Sábado" <?php if ($filterDia == 'Sábado') echo 'selected'; ?>>Sábado</option>
-                    <option value="Domingo" <?php if ($filterDia == 'Domingo') echo 'selected'; ?>>Domingo</option>
+<form method="GET" class="card mb-4">
+    <div class="card-body form-grid">
+        <div>
+            <label class="form-label" for="dia">Dia</label>
+            <select name="dia" id="dia" class="form-select"><option value="">Todos</option>
+                <?php foreach (DIAS_SEMANA as $d): ?><option <?= $f['dia'] === $d ? 'selected' : '' ?>><?= e($d) ?></option><?php endforeach; ?>
+            </select>
+        </div>
+        <?php foreach (['unidade' => 'Unidade', 'modulo' => 'Módulo', 'preceptor' => 'Preceptor', 'subgrupo' => 'Subgrupo'] as $campo => $rotulo): ?>
+            <div>
+                <label class="form-label" for="f_<?= $campo ?>"><?= $rotulo ?></label>
+                <select name="<?= $campo ?>" id="f_<?= $campo ?>" class="form-select"><option value="0">Todos</option>
+                    <?php foreach ($opcoes[$campo] as $o): ?><option value="<?= (int) $o['id'] ?>" <?= $f[$campo] === (int) $o['id'] ? 'selected' : '' ?>><?= e($o['nome']) ?></option><?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-2">
-                <label for="unidade" class="form-label">Unidade</label>
-                <select name="unidade" id="unidade" class="form-select">
-                    <option value="">Todas</option>
-                    <?php while ($row = $unidades->fetch_assoc()): ?>
-                        <option value="<?php echo htmlspecialchars($row['nome_unidade']); ?>" <?php if ($filterUnidade == $row['nome_unidade']) echo 'selected'; ?>>
-                            <?php echo htmlspecialchars($row['nome_unidade']); ?>
-                        </option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="subgrupo" class="form-label">Subgrupo</label>
-                <select name="subgrupo" id="subgrupo" class="form-select">
-                    <option value="">Todos</option>
-                    <?php while ($row = $subgrupos->fetch_assoc()): ?>
-                        <option value="<?php echo htmlspecialchars($row['nome_subgrupo']); ?>" <?php if ($filterSubgrupo == $row['nome_subgrupo']) echo 'selected'; ?>>
-                            <?php echo htmlspecialchars($row['nome_subgrupo']); ?>
-                        </option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="modulo" class="form-label">Módulo</label>
-                <select name="modulo" id="modulo" class="form-select">
-                    <option value="">Todos</option>
-                    <?php while ($row = $modulos->fetch_assoc()): ?>
-                        <option value="<?php echo htmlspecialchars($row['nome_modulo']); ?>" <?php if ($filterModulo == $row['nome_modulo']) echo 'selected'; ?>>
-                            <?php echo htmlspecialchars($row['nome_modulo']); ?>
-                        </option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="preceptor" class="form-label">Preceptor</label>
-                <select name="preceptor" id="preceptor" class="form-select">
-                    <option value="">Todos</option>
-                    <?php while ($row = $preceptores->fetch_assoc()): ?>
-                        <option value="<?php echo htmlspecialchars($row['nome']); ?>" <?php if ($filterPreceptor == $row['nome']) echo 'selected'; ?>>
-                            <?php echo htmlspecialchars($row['nome']); ?>
-                        </option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            <div class="col-md-2 align-self-end">
-                <button type="submit" class="btn btn-primary">Filtrar</button>
-            </div>
-        </form>
+        <?php endforeach; ?>
+        <div class="d-flex gap-2 align-items-end">
+            <button class="btn btn-outline-primary"><i class="bi bi-funnel"></i> Filtrar</button>
+            <?php if ($filtrando): ?><a href="horarios.php" class="btn btn-link">Limpar</a><?php endif; ?>
+        </div>
+    </div>
+</form>
 
-        <?php
-        // Construindo a consulta com os filtros
-        $query = "SELECT h.idhorario, 
-                         u.nome_unidade, 
-                         d.nome_departamento, 
-                         m.nome_modulo, 
-                         p.nome AS preceptor_nome, 
-                         h.dia_semana, 
-                         h.hora_inicio, 
-                         h.hora_fim, 
-                         sg.nome_subgrupo 
-                  FROM horarios h
-                  JOIN unidades u ON h.idunidade = u.idunidade
-                  JOIN modulos m ON h.idmodulo = m.idmodulo
-                  JOIN departamentos d ON h.iddepartamento = d.iddepartamento
-                  JOIN usuarios p ON h.idpreceptor = p.idusuario
-                  JOIN subgrupos sg ON h.idsubgrupo = sg.idsubgrupo
-                  WHERE 1=1";
+<?php if (!$horarios): ?>
+    <div class="card"><div class="card-body"><?= empty_state($filtrando ? 'Nenhum horário com esses filtros.' : 'Nenhum horário cadastrado.', 'bi-clock', '<a href="preencher-horario.php" class="btn btn-primary">Cadastrar horário</a>') ?></div></div>
+<?php endif; ?>
 
-        // Adicionando os filtros à consulta
-        if ($filterDia) {
-            $query .= " AND h.dia_semana = '" . mysqli_real_escape_string($conn, $filterDia) . "'";
-        }
-        if ($filterUnidade) {
-            $query .= " AND u.nome_unidade LIKE '%" . mysqli_real_escape_string($conn, $filterUnidade) . "%'";
-        }
-        if ($filterSubgrupo) {
-            $query .= " AND sg.nome_subgrupo LIKE '%" . mysqli_real_escape_string($conn, $filterSubgrupo) . "%'";
-        }
-        if ($filterModulo) {
-            $query .= " AND m.nome_modulo LIKE '%" . mysqli_real_escape_string($conn, $filterModulo) . "%'";
-        }
-        if ($filterPreceptor) {
-            $query .= " AND p.nome LIKE '%" . mysqli_real_escape_string($conn, $filterPreceptor) . "%'";
-        }
-
-        // Ordenação
-        $query .= " ORDER BY FIELD(h.dia_semana, 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'), h.hora_inicio";
-
-        $result = mysqli_query($conn, $query);
-        
-        if (mysqli_num_rows($result) > 0) {
-            echo '<table class="table table-bordered">
-                    <thead>
+<?php foreach (DIAS_SEMANA as $dia): if (empty($porDia[$dia])) { continue; } ?>
+    <div class="card day-block">
+        <div class="card-header"><h2><?= e($dia) ?></h2><span class="text-muted"><?= count($porDia[$dia]) ?> atividade(s)</span></div>
+        <div class="table-wrap">
+            <table class="table align-middle">
+                <thead><tr><th>Horário</th><th>Subgrupo</th><th>Módulo</th><th>Preceptor</th><th>Unidade / departamento</th><th>Local</th><th class="actions"></th></tr></thead>
+                <tbody>
+                    <?php foreach ($porDia[$dia] as $h): ?>
                         <tr>
-                            <th>Unidade</th>
-                            <th>Departamento</th>
-                            <th>Módulo</th>
-                            <th>Preceptor</th>
-                            <th>Dia da Semana</th>
-                            <th>Hora de Início</th>
-                            <th>Hora de Fim</th>
-                            <th>Subgrupo</th>
-                            <th>Ações</th>
+                            <td class="time"><?= e(hora_curta($h['hora_inicio'])) ?>–<?= e(hora_curta($h['hora_fim'])) ?></td>
+                            <td><span class="chip"><?= e($h['nome_subgrupo']) ?></span><div class="small text-muted"><?= e($h['ciclo'] ?? '') ?></div></td>
+                            <td><?= e($h['nome_modulo']) ?></td>
+                            <td><?= e($h['preceptor']) ?></td>
+                            <td><?= e($h['nome_unidade']) ?><div class="small text-muted"><?= e($h['nome_departamento'] ?? '—') ?></div></td>
+                            <td><?= e($h['local'] ?: '—') ?></td>
+                            <td class="actions">
+                                <a href="preencher-horario.php?id=<?= (int) $h['idhorario'] ?>" class="btn btn-sm btn-outline-secondary" aria-label="Editar"><i class="bi bi-pencil"></i></a>
+                                <?= form_acao('acoes-horario.php', ['acao' => 'excluir', 'idhorario' => $h['idhorario']], '<i class="bi bi-trash"></i>', 'btn btn-sm btn-outline-danger', 'Excluir este horário?') ?>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>';
-            
-            while ($row = mysqli_fetch_assoc($result)) {
-                echo '<tr>
-                        <td>' . htmlspecialchars($row['nome_unidade']) . '</td>
-                        <td>' . htmlspecialchars($row['nome_departamento']) . '</td>
-                        <td>' . htmlspecialchars($row['nome_modulo']) . '</td>
-                        <td>' . htmlspecialchars($row['preceptor_nome']) . '</td>
-                        <td>' . htmlspecialchars($row['dia_semana']) . '</td>
-                        <td>' . htmlspecialchars($row['hora_inicio']) . '</td>
-                        <td>' . htmlspecialchars($row['hora_fim']) . '</td>
-                        <td>' . htmlspecialchars($row['nome_subgrupo']) . '</td>
-                        <td>
-                            <a href="preencher-horario.php?id=' . urlencode($row['idhorario']) . '" class="btn btn-primary btn-sm">Editar</a>
-                            <a href="excluir-horario.php?id=' . urlencode($row['idhorario']) . '" class="btn btn-danger btn-sm" onclick="return confirm(\'Tem certeza que deseja excluir este horário?\')">Excluir</a>
-                        </td>
-                      </tr>';
-            }
-            
-            echo '</tbody></table>';
-        } else {
-            echo '<div class="d-flex flex-column align-items-center mt-4">
-                    <p class="text-center mb-3">Não há horários correspondentes aos critérios de filtro.</p>
-                  </div>';
-        }
-        ?>
-        <div class="d-flex flex-column align-items-center mt-4">
-            <p class="text-center mb-3" id="no-results-message" style="display: none;">Não há horários correspondentes aos critérios de filtro.</p>
-            <a href="preencher-horario.php" class="btn btn-success">Adicionar Novo Horário</a>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-</body>
-</html>
+    </div>
+<?php endforeach; ?>
+<?php layout_fim(); ?>

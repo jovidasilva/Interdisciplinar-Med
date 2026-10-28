@@ -1,106 +1,61 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
-?>
-<?php
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+require_once __DIR__ . '/../../../includes/app.php';
+require_once __DIR__ . '/../../../includes/csv.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify_or_die();
-
-    $maxFileSize = 5 * 1024 * 1024;
-
-    if (isset($_FILES['file']) && $_FILES['file']['error'] == 0) {
-        $file = $_FILES['file']['tmp_name'];
-        $fileSize = $_FILES['file']['size'];
-        $fileType = mime_content_type($file);
-
-        if ($fileType !== 'text/plain' && $fileType !== 'text/csv') {
-            echo "<div class='alert alert-danger'>Erro: Apenas arquivos CSV são permitidos.</div>";
-            echo "<a href=\"?page=listar-modulos\" class=\"btn btn-secondary\">Voltar</a>";
-            exit();
-        }
-
-        if ($fileSize > $maxFileSize) {
-            echo "<div class='alert alert-danger'>Erro: O arquivo excede o tamanho máximo permitido de 5MB.</div>";
-            echo "<a href=\"?page=listar-modulos\" class=\"btn btn-secondary\">Voltar</a>";
-            exit();
-        }
-
-        if (($handle = fopen($file, "r")) !== false) {
-            fgetcsv($handle);
-
-            $success_count = 0;
-            $error_count = 0;
-            $duplicated_count = 0;
-
-            while (($data = fgetcsv($handle, 1000, ",")) !== false) {
-                $nome_modulo = $data[0];
-                $periodo = (int) trim($data[1]);
-
-                if (empty($nome_modulo) || empty($periodo)) {
-                    echo "<div class='alert alert-danger'>Dados inválidos na linha do modulo '$nome_modulo'.</div>";
-                    $error_count++;
-                    continue;
-                }
-
-                $stmt = $conn->prepare("SELECT idmodulo FROM modulos WHERE nome_modulo = ?");
-                $stmt->bind_param("s", $nome_modulo);
-                $stmt->execute();
-                $stmt->store_result();
-
-                if ($stmt->num_rows > 0) {
-                    echo "<div class='alert alert-warning'>O modulo '$nome_modulo' já existe. Pulei esta linha.</div>";
-                    $duplicated_count++;
-                } else {
-                    $stmt = $conn->prepare("INSERT INTO modulos (nome_modulo, periodo) VALUES (?, ?)");
-                    $stmt->bind_param("si", $nome_modulo, $periodo);
-
-                    if ($stmt->execute()) {
-                        $success_count++;
-                    } else {
-                        echo "<div class='alert alert-danger'>Erro ao inserir o modulo '$nome_modulo'.</div>";
-                        $error_count++;
-                    }
-                }
-            }
-            fclose($handle);
-
-            echo "<div class='alert alert-success'>$success_count modulos importados com sucesso.</div>";
-            if ($duplicated_count > 0) {
-                echo "<div class='alert alert-warning'>$duplicated_count modulos já existiam e foram ignorados.</div>";
-            }
-            if ($error_count > 0) {
-                echo "<div class='alert alert-danger'>$error_count erros durante a importação.</div>";
-            }
-        } else {
-            echo "<div class='alert alert-danger'>Erro ao abrir o arquivo.</div>";
-        }
-    } else {
-        echo "<div class='alert alert-danger'>Erro no upload do arquivo.</div>";
+    [$linhas, $erro] = ler_csv_upload('file');
+    if ($erro) {
+        redirecionar('importar-modulos.php', $erro, 'error');
     }
+    $novos = $duplicados = 0;
+    $invalidos = [];
+    foreach ($linhas as $n => $l) {
+        $nome = $l[0] ?? '';
+        $periodo = (int) ($l[1] ?? 0);
+        if ($nome === '' || !in_array($periodo, PERIODOS, true)) {
+            $invalidos[] = $n + 2;
+            continue;
+        }
+        if (db_um($conn, 'SELECT 1 FROM modulos WHERE nome_modulo = ? AND periodo = ?', 'si', [$nome, $periodo])) {
+            $duplicados++;
+            continue;
+        }
+        db_exec($conn, 'INSERT INTO modulos (nome_modulo, periodo) VALUES (?, ?)', 'si', [$nome, $periodo]);
+        $novos++;
+    }
+    $msg = "{$novos} módulo(s) importado(s), {$duplicados} já existia(m).";
+    if ($invalidos) {
+        $msg .= ' Linhas inválidas: ' . implode(', ', $invalidos) . '.';
+    }
+    redirecionar('modulos.php', $msg, $invalidos ? 'warning' : 'success');
 }
+
+layout_inicio('Importar módulos');
+page_header('Importar módulos', 'Cadastre vários módulos de uma vez.', botao_voltar('modulos.php'));
 ?>
-<div class="container mt-3">
-    <div class="card">
-        <div class="card-body">
-            <h3>Importar Módulos</h3>
-            <form action="?page=importar-modulos" method="post" enctype="multipart/form-data">
-                <?php echo csrf_field(); ?>
-                <div class="mb-3">
-                    <label for="file" class="form-label">Selecione o arquivo CSV</label>
-                    <input type="file" name="file" id="file" class="form-control" accept=".csv" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Importar</button>
-                <a href="?page=listar-modulos" class="btn btn-secondary">Voltar</a>
-            </form>
+<div class="row g-4">
+    <div class="col-lg-6">
+        <form method="POST" enctype="multipart/form-data" class="card">
+            <div class="card-body">
+                <?= csrf_field() ?>
+                <label for="file" class="form-label">Arquivo CSV</label>
+                <input type="file" name="file" id="file" class="form-control" accept=".csv,text/csv" required>
+                <div class="form-text">Separador vírgula ou ponto e vírgula; a primeira linha é ignorada.</div>
+                <div class="form-actions"><button class="btn btn-primary"><i class="bi bi-upload"></i> Importar</button></div>
+            </div>
+        </form>
+    </div>
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><h2>Formato esperado</h2></div>
+            <div class="card-body small">
+                <code class="d-block mb-2">nome do modulo,periodo</code>
+                <code class="d-block mb-3">Clínica Médica,9</code>
+                Períodos válidos: <?= implode(', ', PERIODOS) ?>.
+            </div>
         </div>
     </div>
 </div>
+<?php layout_fim(); ?>

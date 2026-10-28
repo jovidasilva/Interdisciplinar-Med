@@ -1,9 +1,5 @@
 <?php
-session_start();
-require_once __DIR__ . '/../cfg/config.php';
-require_once __DIR__ . '/../includes/csrf.php';
-
-const SENHA_MIN_LEN = 8;
+require_once __DIR__ . '/../includes/app.php';
 
 /**
  * Busca um token de reset válido (não usado e não expirado) pelo valor em
@@ -75,61 +71,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+layout_auth_inicio('Redefinir senha');
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
+<?php if ($erros): ?>
+    <div class="alert alert-danger"><?php foreach ($erros as $erro): ?><div><?= e($erro) ?></div><?php endforeach; ?></div>
+<?php endif; ?>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redefinir senha</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
-
-<body class="auth-page">
-    <div class="card-login">
-        <h3>Redefinir senha</h3>
-
-        <?php if (!empty($erros)): ?>
-            <div class="alert alert-danger text-start">
-                <ul class="mb-0">
-                    <?php foreach ($erros as $erro): ?>
-                        <li><?= htmlspecialchars($erro, ENT_QUOTES) ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($sucesso): ?>
-            <div class="alert alert-success">
-                Senha redefinida com sucesso! Você já pode entrar com sua nova senha.
-            </div>
-            <a href="../index.php" class="btn btn-secondary w-100">Ir para o login</a>
-
-        <?php elseif (!$tokenValido): ?>
-            <div class="alert alert-warning">
-                Este link de redefinição de senha é inválido ou já expirou.
-            </div>
-            <a href="esqueci-senha.php" class="btn btn-secondary w-100">Solicitar novo link</a>
-
-        <?php else: ?>
-            <form action="redefinir-senha.php" method="POST">
-                <?= csrf_field() ?>
-                <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
-                <div class="mb-3">
-                    <label for="senha">Nova senha</label>
-                    <input type="password" name="senha" id="senha" class="form-control" minlength="<?= SENHA_MIN_LEN ?>" required>
-                </div>
-                <div class="mb-3">
-                    <label for="confirmar_senha">Confirmar nova senha</label>
-                    <input type="password" name="confirmar_senha" id="confirmar_senha" class="form-control" minlength="<?= SENHA_MIN_LEN ?>" required>
-                </div>
-                <button type="submit">Redefinir senha</button>
-            </form>
-            <a href="../index.php" class="btn btn-secondary w-100">Cancelar</a>
-        <?php endif; ?>
-    </div>
-</body>
-
-</html>
+<?php if ($sucesso): ?>
+    <div class="alert alert-success">Senha redefinida com sucesso! Você já pode entrar com a nova senha.</div>
+    <a href="../index.php" class="btn btn-primary btn-lg w-100">Ir para o login</a>
+<?php elseif (!$tokenValido): ?>
+    <div class="alert alert-warning">Este link de redefinição de senha é inválido ou já expirou.</div>
+    <a href="esqueci-senha.php" class="btn btn-primary btn-lg w-100">Solicitar novo link</a>
+<?php else: ?>
+    <form action="redefinir-senha.php" method="POST">
+        <?= csrf_field() ?>
+        <input type="hidden" name="token" value="<?= e($token) ?>">
+        <div class="mb-3">
+            <label for="senha" class="form-label">Nova senha</label>
+            <input type="password" name="senha" id="senha" class="form-control form-control-lg" minlength="<?= SENHA_MIN_LEN ?>" autocomplete="new-password" required>
+            <div class="form-text">Mínimo de <?= SENHA_MIN_LEN ?> caracteres.</div>
+        </div>
+        <div class="mb-3">
+            <label for="confirmar_senha" class="form-label">Confirmar nova senha</label>
+            <input type="password" name="confirmar_senha" id="confirmar_senha" class="form-control form-control-lg" minlength="<?= SENHA_MIN_LEN ?>" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-100">Redefinir senha</button>
+    </form>
+    <p class="auth-footer"><a href="../index.php">Cancelar</a></p>
+<?php endif; ?>
+<?php layout_auth_fim(); ?>

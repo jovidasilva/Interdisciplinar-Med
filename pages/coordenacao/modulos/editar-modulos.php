@@ -1,53 +1,38 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+
+$idmodulo = (int) ($_GET['idmodulo'] ?? 0);
+$modulo = ['nome_modulo' => '', 'periodo' => PERIODOS[0]];
+if ($idmodulo) {
+    $modulo = db_um($conn, 'SELECT nome_modulo, periodo FROM modulos WHERE idmodulo = ?', 'i', [$idmodulo])
+        ?? redirecionar('modulos.php', 'Módulo não encontrado.', 'error');
 }
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
+
+$titulo = $idmodulo ? 'Editar módulo' : 'Novo módulo';
+layout_inicio($titulo);
+page_header($titulo, '', botao_voltar('modulos.php'));
 ?>
-<h1>Editar Módulo</h1>
-<?php
-$sql = "SELECT * FROM modulos WHERE idmodulo=" . intval($_REQUEST['idmodulo']);
-$res = $conn->query($sql);
-
-if (!$res) {
-    error_log("Erro na consulta (editar-modulos.php): " . $conn->error);
-    die("Erro ao processar a consulta. Tente novamente mais tarde.");
-}
-
-$row = $res->fetch_object();
-if (!$row) {
-    die("Módulo não encontrado.");
-}
-?>
-<form action="acoes-modulos.php" method="POST">
-    <?php echo csrf_field(); ?>
-    <input type="hidden" name="acao" value="editar">
-    <input type="hidden" name="idmodulo" value="<?php echo intval($row->idmodulo); ?>">
-
-    <div class="mb-3">
-        <label>Nome do Módulo</label>
-        <input type="text" name="nome_modulo" value="<?php echo htmlspecialchars($row->nome_modulo); ?>" class="form-control" required>
-    </div>
-
-    <div class="mb-3">
-        <label>Período</label>
-        <select name="periodo" class="form-select">
-            <option value="9" <?php echo ($row->periodo == 9) ? 'selected' : ''; ?>>9º Período</option>
-            <option value="10" <?php echo ($row->periodo == 10) ? 'selected' : ''; ?>>10º Período</option>
-            <option value="11" <?php echo ($row->periodo == 11) ? 'selected' : ''; ?>>11º Período</option>
-            <option value="12" <?php echo ($row->periodo == 12) ? 'selected' : ''; ?>>12º Período</option>
-        </select>
-    </div>
-
-    <div class="mb-3">
-        <button type="submit" class="btn btn-success">Enviar</button>
-        <a href="?page=listar-modulos" class="btn btn-secondary">Voltar</a>
+<form action="acoes-modulos.php" method="POST" class="card form-narrow">
+    <div class="card-body">
+        <?= csrf_field() ?>
+        <input type="hidden" name="acao" value="salvar">
+        <input type="hidden" name="idmodulo" value="<?= $idmodulo ?>">
+        <div class="mb-3">
+            <label for="nome_modulo" class="form-label">Nome do módulo</label>
+            <input type="text" name="nome_modulo" id="nome_modulo" class="form-control" maxlength="90" value="<?= e($modulo['nome_modulo']) ?>" required autofocus>
+        </div>
+        <div class="mb-0">
+            <label for="periodo" class="form-label">Período</label>
+            <select name="periodo" id="periodo" class="form-select" required>
+                <?php foreach (PERIODOS as $p): ?><option value="<?= $p ?>" <?= (int) $modulo['periodo'] === $p ? 'selected' : '' ?>><?= $p ?>º período</option><?php endforeach; ?>
+            </select>
+            <?php if ($idmodulo): ?><div class="form-text">Mudar o período não altera rodízios já gerados.</div><?php endif; ?>
+        </div>
+        <div class="form-actions">
+            <a href="modulos.php" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check2"></i> Salvar</button>
+        </div>
     </div>
 </form>
+<?php layout_fim(); ?>

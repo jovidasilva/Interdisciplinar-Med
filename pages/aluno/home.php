@@ -1,80 +1,62 @@
 <?php
-session_start();
-if (empty($_SESSION["login"])) {
-    echo "<script>location.href='../../index.php';</script>";
-    exit();
-}
-include('../../cfg/config.php');
+require_once __DIR__ . '/../../includes/app.php';
+exigir_acesso(PAPEIS_ALUNO);
+
+$id = usuario_id();
+$hoje = date('Y-m-d');
+$diaHoje = DIAS_SEMANA[(int) date('N') - 1];
+
+$rodizioAtual = db_um($conn, "SELECT r.inicio, r.fim, m.nome_modulo
+    FROM alunos_subgrupos asg
+    JOIN rodizios_subgrupos rs ON rs.idsubgrupo = asg.idsubgrupo
+    JOIN rodizios r ON r.idrodizio = rs.idrodizio
+    JOIN modulos m ON m.idmodulo = r.idmodulo
+    WHERE asg.idusuario = ? AND r.fim >= ?
+    ORDER BY r.inicio LIMIT 1", 'is', [$id, $hoje]);
+
+$horariosHoje = db_todos($conn, "SELECT h.hora_inicio, h.hora_fim, h.local, m.nome_modulo, u.nome_unidade
+    FROM alunos_subgrupos asg
+    JOIN horarios h ON h.idsubgrupo = asg.idsubgrupo
+    JOIN modulos m ON m.idmodulo = h.idmodulo
+    JOIN unidades u ON u.idunidade = h.idunidade
+    WHERE asg.idusuario = ? AND h.dia_semana = ?
+    ORDER BY h.hora_inicio", 'is', [$id, $diaHoje]);
+
+$notas = db_um($conn, 'SELECT COUNT(*) AS total, AVG(nota) AS media FROM avaliacoes WHERE idaluno = ?', 'i', [$id]);
+
+layout_inicio('Início');
+page_header('Olá, ' . explode(' ', (string) $_SESSION['nome'])[0], 'Resumo do seu internato.');
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
+<div class="stats">
+    <?= stat_tile('Rodízio ' . ($rodizioAtual && $rodizioAtual['inicio'] <= $hoje ? 'atual' : 'próximo'), $rodizioAtual['nome_modulo'] ?? '—', 'bi-arrow-repeat', 'rodizios.php') ?>
+    <?= stat_tile('Atividades hoje (' . $diaHoje . ')', (string) count($horariosHoje), 'bi-clock', 'horarios.php') ?>
+    <?= stat_tile('Avaliações recebidas', (string) (int) $notas['total'], 'bi-clipboard-check', 'notas.php') ?>
+    <?= stat_tile('Média geral', $notas['media'] !== null ? number_format((float) $notas['media'], 2, ',', '.') : '—', 'bi-graph-up', 'notas.php') ?>
+</div>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Início - Aluno</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../css/style.css?v=<?php echo ASSET_VERSION; ?>">
-</head>
-
-<body>
-    <header>
-        <?php include('../../includes/navbar.php'); ?>
-        <?php include('../../includes/menu-lateral-aluno.php'); ?>
-    </header>
-    <main>
-        <div class="container mt-4">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h2>Bem-vindo(a), <?php echo htmlspecialchars($_SESSION['nome']); ?>!</h2>
-                    <p class="text-muted mb-0">Acesse rapidamente as principais áreas do seu internato.</p>
-                </div>
-            </div>
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <a href="horarios.php" class="text-decoration-none">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-alarm" style="font-size: 2rem;"></i>
-                                <h5 class="mt-2">Horários</h5>
-                                <p class="text-muted mb-0">Consulte seus horários de atividades.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col-md-4">
-                    <a href="notas.php" class="text-decoration-none">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-journal-text" style="font-size: 2rem;"></i>
-                                <h5 class="mt-2">Notas</h5>
-                                <p class="text-muted mb-0">Veja suas avaliações e notas.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col-md-4">
-                    <a href="rodizios.php" class="text-decoration-none">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-calendar" style="font-size: 2rem;"></i>
-                                <h5 class="mt-2">Rodízios</h5>
-                                <p class="text-muted mb-0">Acompanhe seus rodízios.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            </div>
+<div class="card">
+    <div class="card-header">
+        <h2>Hoje, <?= e($diaHoje) ?></h2>
+        <a href="horarios.php" class="btn btn-sm btn-outline-secondary">Semana completa</a>
+    </div>
+    <?php if (!$horariosHoje): ?>
+        <div class="card-body"><?= empty_state('Nenhuma atividade programada para hoje.', 'bi-calendar-check') ?></div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Horário</th><th>Módulo</th><th>Unidade</th><th>Local</th></tr></thead>
+                <tbody>
+                    <?php foreach ($horariosHoje as $h): ?>
+                        <tr>
+                            <td class="time"><?= e(hora_curta($h['hora_inicio'])) ?>–<?= e(hora_curta($h['hora_fim'])) ?></td>
+                            <td><?= e($h['nome_modulo']) ?></td>
+                            <td><?= e($h['nome_unidade']) ?></td>
+                            <td><?= e($h['local'] ?: '—') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="card footer-home rounded-0">
-            <div class="card-body">
-            </div>
-        </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-</body>
-
-</html>
+    <?php endif; ?>
+</div>
+<?php layout_fim(); ?>

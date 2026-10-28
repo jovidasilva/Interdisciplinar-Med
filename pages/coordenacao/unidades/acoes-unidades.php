@@ -1,60 +1,90 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (empty($_SESSION['login']) || !in_array($_SESSION['tipo'] ?? null, [2, 3], true)) {
-    header('Location: ' . str_repeat('../', 3) . 'index.php');
-    exit();
-}
-if (!isset($conn)) {
-    require_once __DIR__ . '/' . str_repeat('../', 3) . 'cfg/config.php';
-}
-require_once __DIR__ . '/' . str_repeat('../', 3) . 'includes/csrf.php';
-?>
-<?php
-switch ($_REQUEST['acao']) {
-    case 'cadastrar':
-        csrf_verify_or_die();
-        if (!empty($_POST['nome_unidade']) && !empty($_POST['endereco_unidade'])) {
-            $nome_unidade = $conn->real_escape_string($_POST['nome_unidade']);
-            $endereco_unidade = $conn->real_escape_string($_POST['endereco_unidade']);
-            $sql = "INSERT INTO unidades (nome_unidade, endereco_unidade) VALUES ('$nome_unidade', '$endereco_unidade')";
-            $res = $conn->query($sql);
-            if ($res == true) {
-                echo "<script>alert('Unidade cadastrada com sucesso!');</script>";
-            } else {
-                echo "<script>alert('Não foi possível cadastrar a unidade.');</script>";
-            }
-            echo "<script>location.href='unidades.php';</script>";
-        } else {
-            echo "<script>alert('Os campos nome e endereço da unidade são obrigatórios.');</script>";
-        }
-        break;
-    case 'editar':
-        csrf_verify_or_die();
-        $idunidade = intval($_POST['idunidade']);
-        $nome_unidade = $conn->real_escape_string($_POST['nome_unidade']);
-        $endereco_unidade = $conn->real_escape_string($_POST['endereco_unidade']);
+require_once __DIR__ . '/../../../includes/app.php';
+exigir_acesso(PAPEIS_COORDENACAO);
+exigir_post();
 
-        $sql = "UPDATE unidades SET nome_unidade='$nome_unidade', endereco_unidade='$endereco_unidade' WHERE idunidade=$idunidade";
-        if ($conn->query($sql) === TRUE) {
-            echo "<script>alert('Unidade alterada com sucesso!');</script>";
-        } else {
-            echo "<script>alert('Não foi possível editar a unidade.');</script>";
-        }
-        echo "<script>location.href='unidades.php';</script>";
-        break;
-    case 'excluir':
-        if (isset($_REQUEST['idunidade'])) {
-            $idunidade = intval($_REQUEST['idunidade']);
-            $sql = "DELETE FROM unidades WHERE idunidade = $idunidade";
-            if ($conn->query($sql) === TRUE) {
-                echo "<script>alert('Unidade excluída com sucesso!');</script>";
-            } else {
-                echo "<script>alert('Não foi possível excluir a unidade.');</script>";
-            }
-            echo "<script>location.href='unidades.php';</script>";
-        } else {
-        }
-        break;
+$acao = $_POST['acao'] ?? '';
+$idunidade = (int) ($_POST['idunidade'] ?? 0);
+$aba = $_POST['aba'] ?? 'modulos';
+$detalhe = 'visualizar-unidade.php?idunidade=' . $idunidade . '&aba=' . urlencode($aba);
+
+if ($acao === 'salvar') {
+    $nome = trim((string) ($_POST['nome_unidade'] ?? ''));
+    $endereco = trim((string) ($_POST['endereco_unidade'] ?? ''));
+    if ($nome === '') {
+        redirecionar('editar-unidades.php?idunidade=' . $idunidade, 'Informe o nome da unidade.', 'error');
+    }
+    if ($idunidade) {
+        db_exec($conn, 'UPDATE unidades SET nome_unidade = ?, endereco_unidade = ? WHERE idunidade = ?', 'ssi', [$nome, $endereco, $idunidade]);
+        redirecionar('visualizar-unidade.php?idunidade=' . $idunidade, 'Unidade atualizada.');
+    }
+    db_exec($conn, 'INSERT INTO unidades (nome_unidade, endereco_unidade) VALUES (?, ?)', 'ss', [$nome, $endereco]);
+    redirecionar('visualizar-unidade.php?idunidade=' . $conn->insert_id, 'Unidade cadastrada. Agora associe módulos e preceptores.');
 }
+
+if ($acao === 'excluir') {
+    try {
+        db_exec($conn, 'DELETE FROM unidades WHERE idunidade = ?', 'i', [$idunidade]);
+        redirecionar('unidades.php', 'Unidade excluída.');
+    } catch (mysqli_sql_exception $e) {
+        redirecionar($detalhe, 'Há horários cadastrados nesta unidade. Exclua-os antes de remover a unidade.', 'error');
+    }
+}
+
+if ($acao === 'associar_modulos' || $acao === 'desassociar_modulos') {
+    $sql = $acao === 'associar_modulos'
+        ? 'INSERT IGNORE INTO unidades_modulos (idunidade, idmodulo) VALUES (?, ?)'
+        : 'DELETE FROM unidades_modulos WHERE idunidade = ? AND idmodulo = ?';
+    foreach (ids_do_post('modulos') as $idmodulo) {
+        db_exec($conn, $sql, 'ii', [$idunidade, $idmodulo]);
+    }
+    redirecionar($detalhe, $acao === 'associar_modulos' ? 'Módulos associados.' : 'Módulos removidos da unidade.');
+}
+
+if ($acao === 'associar_preceptores') {
+    // Um preceptor pertence a uma única unidade: associar aqui o move.
+    foreach (ids_do_post('preceptores') as $id) {
+        db_exec($conn, 'INSERT INTO preceptores_unidades (idusuario, idunidade) VALUES (?, ?) ON DUPLICATE KEY UPDATE idunidade = VALUES(idunidade)', 'ii', [$id, $idunidade]);
+    }
+    redirecionar($detalhe, 'Preceptores associados à unidade.');
+}
+
+if ($acao === 'desassociar_preceptores') {
+    foreach (ids_do_post('preceptores') as $id) {
+        db_exec($conn, 'DELETE FROM preceptores_unidades WHERE idusuario = ? AND idunidade = ?', 'ii', [$id, $idunidade]);
+    }
+    redirecionar($detalhe, 'Preceptores removidos da unidade. Os módulos deles foram mantidos.');
+}
+
+if ($acao === 'adicionar_departamento') {
+    $nome = trim((string) ($_POST['nome_departamento'] ?? ''));
+    if ($nome === '') {
+        redirecionar($detalhe, 'Informe o nome do departamento.', 'error');
+    }
+    db_exec($conn, 'INSERT INTO departamentos (nome_departamento, idunidade) VALUES (?, ?)', 'si', [$nome, $idunidade]);
+    redirecionar($detalhe, 'Departamento adicionado.');
+}
+
+if ($acao === 'excluir_departamento') {
+    db_exec($conn, 'DELETE FROM departamentos WHERE iddepartamento = ? AND idunidade = ?', 'ii', [(int) ($_POST['iddepartamento'] ?? 0), $idunidade]);
+    redirecionar($detalhe, 'Departamento removido. Horários dele ficaram sem departamento.');
+}
+
+if ($acao === 'departamento_modulos') {
+    // Substitui a lista de módulos do departamento pela marcada no formulário,
+    // aceitando só módulos que a unidade oferece.
+    $iddep = (int) ($_POST['iddepartamento'] ?? 0);
+    if (!db_um($conn, 'SELECT 1 FROM departamentos WHERE iddepartamento = ? AND idunidade = ?', 'ii', [$iddep, $idunidade])) {
+        redirecionar($detalhe, 'Departamento não encontrado.', 'error');
+    }
+    $conn->begin_transaction();
+    db_exec($conn, 'DELETE FROM modulos_departamentos WHERE iddepartamento = ?', 'i', [$iddep]);
+    foreach (ids_do_post('modulos') as $idmodulo) {
+        db_exec($conn, 'INSERT INTO modulos_departamentos (iddepartamento, idmodulo)
+            SELECT ?, idmodulo FROM unidades_modulos WHERE idunidade = ? AND idmodulo = ?', 'iii', [$iddep, $idunidade, $idmodulo]);
+    }
+    $conn->commit();
+    redirecionar($detalhe, 'Módulos do departamento atualizados.');
+}
+
+redirecionar('unidades.php', 'Ação inválida.', 'error');
